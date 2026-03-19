@@ -119,6 +119,9 @@ function depopScraper() {
   });
 }
 
-// Return the promise — executeScript captures the resolved value
-depopScraper();
+// Store result in window so background.js can poll for it
+window.__depopScraperResult = null;
+depopScraper().then(result => {
+  window.__depopScraperResult = result;
+});
 

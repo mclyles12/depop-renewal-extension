@@ -137,6 +137,19 @@ async function scrapeProfile(profileUrl) {
       world: "MAIN"
     });
 
+    // scraper.js stores result in window.__depopScraperResult when done
+    // Poll until it's ready (max 3 minutes)
+    let data = null;
+    for (let i = 0; i < 90; i++) {
+      await sleep(2000);
+      const poll = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => window.__depopScraperResult || null,
+        world: "MAIN"
+      });
+      data = poll?.[0]?.result;
+      if (data) break;
+    }
     await chrome.tabs.remove(tab.id);
 
     // Restore original tab focus
@@ -144,7 +157,6 @@ async function scrapeProfile(profileUrl) {
       chrome.tabs.update(currentTab.id, { active: true }).catch(() => {});
     }
 
-    const data = result?.[0]?.result;
     if (!data || !data.editUrls?.length) {
       await clearProgress();
       return { ok: false, error: "No listings found. Make sure you're using your profile URL." };
