@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Depop Renewer — Instructions</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0e0e0f;
+      --surface: #1a1a1c;
+      --border: #2a2a2d;
+      --accent: #ff3c5f;
+      --accent-dim: rgba(255,60,95,0.12);
+      --green: #2ecc71;
+      --green-dim: rgba(46,204,113,0.1);
+      --amber: #f5a623;
+      --text: #f0eff0;
+      --muted: #777;
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+      line-height: 1.7;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+
+    .logo-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    .logo-name {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .logo-version {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      margin-left: 4px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .tagline {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 40px;
+    }
+
+    h2 {
+      font-size: 14px;
+      font-family: var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      margin-bottom: 14px;
+      margin-top: 36px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h2::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .step {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent-dim);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .step-content {
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .step-content strong { color: #fff; }
+
+    code {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1px 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--green);
+    }
+
+    .tip-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--amber);
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 16px;
+      line-height: 1.6;
+    }
+
+    .tip-box strong { color: var(--amber); }
+
+    .tip-box.green {
+      border-left-color: var(--green);
+    }
+    .tip-box.green strong { color: var(--green); }
+
+    .warning-box {
+      background: var(--accent-dim);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: var(--text);
+      margin-top: 16px;
+      line-height: 1.6;
+    }
+
+    .warning-box strong { color: var(--accent); }
+
+    .faq-item { margin-top: 20px; }
+    .faq-q { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 5px; }
+    .faq-a { font-size: 13px; color: var(--muted); }
+
+    .footer {
+      margin-top: 48px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="logo">
+    <div class="logo-dot"></div>
+    <span class="logo-name">Depop Renewer</span>
+    <span class="logo-version">v1.3.0</span>
+  </div>
+
+  <h1>How to use Depop Renewer</h1>
+  <p class="tagline">Automatically keeps your listings fresh in Depop search — no paid subscriptions, no bloat.</p>
+
+  <!-- Setup -->
+  <h2>1 — First Time Setup</h2>
+  <div class="step-list">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">Make sure you're <strong>logged into Depop</strong> in Chrome. The extension uses your active session to save listings.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">Click the extension icon in your Chrome toolbar to open the popup.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">In the <strong>Scrape</strong> field, enter your Depop profile URL — e.g. <code>depop.com/maggiemadethis/</code> — and click <strong>⟲ Scrape</strong>. It will open your profile in a background tab, scroll through all your listings, and import them automatically.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-content">If you have listings under multiple shop names, repeat the scrape for each profile URL. Listings are merged automatically.</div>
+    </div>
+  </div>
+
+  <div class="tip-box">
+    <strong>⚠ During scraping:</strong> Background tabs will open and close on their own. Don't click or close them — just leave Chrome alone until it finishes.
+  </div>
+
+  <!-- Schedule -->
+  <h2>2 — Setting a Schedule</h2>
+  <div class="step-list">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">Pick a <strong>refresh interval</strong> using the pill buttons: 4h, 8h, 12h, 24h, or 48h. This controls how often your listings are automatically renewed.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">Toggle the switch in the top-right of the popup to <strong>ON</strong>. The dot will turn green and pulse to confirm it's running.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">The <strong>Next Run</strong> counter shows when the next automatic renewal will happen. It uses a small random offset each time so it never fires at the exact same time.</div>
+    </div>
+  </div>
+
+  <div class="tip-box green">
+    <strong>Tip:</strong> The extension runs while Chrome is open. If you close Chrome, the schedule pauses and resumes next time you open it.
+  </div>
+
+  <!-- Manual renew -->
+  <h2>3 — Manual Renewal</h2>
+  <div class="step-list">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">Hit <strong>⟳ Renew All Now</strong> at any time to immediately renew all listings, regardless of the schedule.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">Listings are renewed in <strong>reverse order</strong> so that listing #1 ends up on top in search when it's done.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">Watch the <strong>Activity Log</strong> at the bottom of the popup for live status — green checkmarks mean success, red X means it couldn't find the save button on that listing.</div>
+    </div>
+  </div>
+
+  <!-- Layout manager -->
+  <h2>4 — Visual Layout Manager</h2>
+  <div class="step-list">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">Click the <strong>⊞ grid icon</strong> in the top-right of the popup to open the Layout Manager.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content"><strong>Drag and drop</strong> your listing photos to arrange them in the order you want them to appear in Depop search.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">Click <strong>💾 Save Order</strong> to save your arrangement, or <strong>⟳ Renew in This Order</strong> to save and immediately renew so the order takes effect in search right away.</div>
+    </div>
+  </div>
+
+  <div class="tip-box">
+    <strong>How ordering works:</strong> Depop shows recently refreshed listings first. By renewing in reverse order (last listing first, first listing last), listing #1 gets renewed last and ends up at the top of search.
+  </div>
+
+  <!-- Warnings -->
+  <h2>5 — Things to Know</h2>
+
+  <div class="warning-box">
+    <strong>Don't touch background tabs.</strong> When renewing, the extension opens each listing's edit page in a background tab and clicks Save. If you interact with those tabs, the save may fail or save incorrect data.
+  </div>
+
+  <div class="tip-box" style="margin-top:10px">
+    <strong>If a listing shows ✗ in the log:</strong> Depop may have updated their website layout and changed the Save button. Report it as a bug so it can be fixed.
+  </div>
+
+  <div class="tip-box" style="margin-top:10px">
+    <strong>Depop must be logged in.</strong> The extension uses your active Depop session. If you get logged out, renewals will fail silently. Check the Activity Log if things stop working.
+  </div>
+
+  <!-- FAQ -->
+  <h2>FAQ</h2>
+
+  <div class="faq-item">
+    <div class="faq-q">Does this violate Depop's terms of service?</div>
+    <div class="faq-a">The extension mimics the same action as manually opening a listing and clicking Save — it doesn't use any unofficial APIs or inject fake data. Human-speed delays are built in to keep behavior natural. Use at your own discretion.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Why did the scraper only grab some of my listings?</div>
+    <div class="faq-a">Depop uses infinite scroll — listings load as you scroll down. If the scraper stopped early, your profile may have taken longer to load than expected. Try scraping again while your profile page is already open in Chrome.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">Will this work if Chrome is closed?</div>
+    <div class="faq-a">No — the schedule only runs while Chrome is open. The extension will pick up where it left off next time Chrome is open.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q">How do I add a listing manually?</div>
+    <div class="faq-a">Go to the listing on Depop, click Edit, copy the URL from the address bar — it should look like <code>depop.com/products/edit/your-item-slug/</code> — and paste it into the Add field in the popup.</div>
+  </div>
+
+  <div class="footer">
+    <span>Depop Renewer v1.3.0</span>
+    <span>Problems? <a href="mailto:lylesmaggie55@gmail.com">lylesmaggie55@gmail.com</a></span>
+  </div>
+
+</body>
+</html>

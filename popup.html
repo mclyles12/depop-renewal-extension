@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Depop Renewer</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0e0e0f;
+      --surface: #1a1a1c;
+      --border: #2a2a2d;
+      --accent: #ff3c5f;
+      --accent-dim: rgba(255, 60, 95, 0.15);
+      --green: #2ecc71;
+      --green-dim: rgba(46, 204, 113, 0.12);
+      --amber: #f5a623;
+      --amber-dim: rgba(245, 166, 35, 0.12);
+      --text: #f0eff0;
+      --muted: #666;
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+
+    body {
+      width: 300px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand { display: flex; align-items: center; gap: 7px; }
+
+    .brand-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 6px var(--accent);
+      flex-shrink: 0;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    .brand-dot.active {
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.45} }
+
+    .brand-name {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .header-right { display: flex; align-items: center; gap: 8px; }
+
+    /* Layout manager button */
+    .layout-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+      padding: 3px 6px;
+      line-height: 1;
+      transition: all 0.15s;
+      title: "Visual Layout Manager";
+    }
+    .layout-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Toggle */
+    .toggle { position: relative; width: 34px; height: 19px; cursor: pointer; flex-shrink: 0; }
+    .toggle input { display: none; }
+    .toggle-track { position: absolute; inset: 0; border-radius: 10px; background: var(--border); transition: background 0.2s; }
+    .toggle input:checked + .toggle-track { background: var(--green); }
+    .toggle-thumb { position: absolute; top: 2.5px; left: 2.5px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform 0.2s; pointer-events: none; }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(15px); }
+
+    /* PSA Banner */
+    .psa-banner {
+      display: none;
+      margin: 0;
+      padding: 8px 14px;
+      background: var(--amber-dim);
+      border-bottom: 1px solid var(--amber);
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--amber);
+      line-height: 1.5;
+    }
+    .psa-banner.visible { display: block; }
+
+    /* Status row */
+    .status-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      border-bottom: 1px solid var(--border);
+    }
+    .stat { padding: 9px 14px; border-right: 1px solid var(--border); }
+    .stat:last-child { border-right: none; }
+    .stat-label { font-size: 9px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 3px; }
+    .stat-value { font-size: 11px; font-family: var(--mono); color: var(--text); }
+    .stat-value.green { color: var(--green); }
+
+    /* Interval picker */
+    .interval-section { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    .section-label { font-size: 9px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 7px; }
+    .interval-pills { display: flex; gap: 5px; }
+    .pill {
+      flex: 1; padding: 5px 0; text-align: center;
+      border-radius: 4px; font-size: 11px; font-family: var(--mono);
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--muted); cursor: pointer; transition: all 0.15s;
+    }
+    .pill:hover { border-color: var(--text); color: var(--text); }
+    .pill.active { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+
+    /* Listings */
+    .listings-section { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+    .listing-count { font-size: 10px; font-family: var(--mono); color: var(--accent); }
+    .listing-list { display: flex; flex-direction: column; gap: 3px; max-height: 90px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; margin-bottom: 8px; }
+    .listing-item { display: flex; align-items: center; gap: 6px; padding: 5px 7px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; }
+    .listing-slug { font-size: 10px; font-family: var(--mono); color: var(--text); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .remove-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; line-height: 1; padding: 0; transition: color 0.15s; flex-shrink: 0; }
+    .remove-btn:hover { color: var(--accent); }
+    .empty-state { text-align: center; padding: 8px 0; font-size: 10px; font-family: var(--mono); color: var(--muted); }
+
+    /* Input rows */
+    .input-row { display: flex; gap: 5px; margin-bottom: 6px; }
+    .input-row:last-child { margin-bottom: 0; }
+    .url-input {
+      flex: 1; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 4px; color: var(--text); font-size: 10px;
+      font-family: var(--mono); padding: 6px 7px; outline: none;
+      transition: border-color 0.15s; min-width: 0;
+    }
+    .url-input::placeholder { color: var(--muted); }
+    .url-input:focus { border-color: var(--accent); }
+    .url-input.profile:focus { border-color: var(--green); }
+    .action-btn { border-radius: 4px; font-size: 10px; font-family: var(--mono); padding: 6px 9px; cursor: pointer; white-space: nowrap; transition: background 0.15s; flex-shrink: 0; }
+    .action-btn.add { background: var(--accent-dim); border: 1px solid var(--accent); color: var(--accent); }
+    .action-btn.add:hover { background: rgba(255,60,95,0.25); }
+    .action-btn.scrape { background: var(--green-dim); border: 1px solid var(--green); color: var(--green); }
+    .action-btn.scrape:hover { background: rgba(46,204,113,0.22); }
+    .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Run button */
+    .run-section { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    .run-btn { width: 100%; background: var(--accent); border: none; border-radius: 5px; color: #fff; font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.06em; padding: 9px; cursor: pointer; transition: opacity 0.15s, transform 0.1s; text-transform: uppercase; }
+    .run-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+    .run-btn:active { transform: translateY(0); }
+    .run-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* Error */
+    .error-banner { margin: 0 14px 6px; padding: 5px 8px; background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 4px; font-size: 10px; font-family: var(--mono); color: var(--accent); display: none; }
+    .error-banner.visible { display: block; }
+
+    /* Footer links */
+    .footer-links {
+      display: flex;
+      gap: 0;
+      border-top: 1px solid var(--border);
+    }
+    .footer-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      border-right: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 8px 0;
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 0.03em;
+    }
+    .footer-btn:last-child { border-right: none; }
+    .footer-btn:hover { background: var(--surface); color: var(--text); }
+    .footer-btn.red:hover { color: var(--accent); background: var(--accent-dim); }
+
+    /* Log */
+    .log-section { padding: 10px 14px 12px; }
+    .log-list { display: flex; flex-direction: column; gap: 3px; max-height: 80px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+    .log-entry { display: flex; gap: 6px; font-size: 10px; font-family: var(--mono); line-height: 1.4; }
+    .log-time { color: var(--muted); flex-shrink: 0; }
+    .log-msg { color: var(--text); }
+    .log-msg.success { color: var(--green); }
+    .log-msg.error { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="brand">
+      <div class="brand-dot" id="statusDot"></div>
+      <span class="brand-name">Depop Renewer</span>
+    </div>
+    <div class="header-right">
+      <button class="layout-btn" id="layoutBtn" title="Visual Layout Manager">⊞</button>
+      <label class="toggle" title="Enable/disable auto-renewal">
+        <input type="checkbox" id="enableToggle" />
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </label>
+    </div>
+  </div>
+
+  <!-- PSA warning shown during scrape/renew -->
+  <div class="psa-banner" id="psaBanner">
+    ⚠ Tabs will open &amp; close automatically.<br>Do not click or close them until this finishes.
+  </div>
+
+  <div class="status-row">
+    <div class="stat">
+      <div class="stat-label">Last Run</div>
+      <div class="stat-value" id="lastRun">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Next Run</div>
+      <div class="stat-value" id="nextRun">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Listings</div>
+      <div class="stat-value green" id="listingCount">0</div>
+    </div>
+  </div>
+
+  <div class="interval-section">
+    <div class="section-label">Refresh Interval</div>
+    <div class="interval-pills">
+      <div class="pill" data-interval="4h">4h</div>
+      <div class="pill" data-interval="8h">8h</div>
+      <div class="pill" data-interval="12h">12h</div>
+      <div class="pill" data-interval="24h">24h</div>
+      <div class="pill active" data-interval="48h">48h</div>
+    </div>
+  </div>
+
+  <div class="listings-section">
+    <div class="section-header">
+      <span class="section-label" style="margin:0">Your Listings</span>
+    </div>
+
+    <div class="listing-list" id="listingList">
+      <div class="empty-state" id="emptyState">No listings added yet</div>
+    </div>
+
+    <div class="input-row">
+      <input type="text" class="url-input" id="urlInput" placeholder="depop.com/products/edit/slug/" />
+      <button class="action-btn add" id="addBtn">+ Add</button>
+    </div>
+
+    <div class="input-row">
+      <input type="text" class="url-input profile" id="profileInput" placeholder="depop.com/yourshopname/" />
+      <button class="action-btn scrape" id="scrapeBtn">⟲ Scrape</button>
+    </div>
+  </div>
+
+  <div class="error-banner" id="errorBanner"></div>
+
+  <div class="run-section">
+    <button class="run-btn" id="runBtn">⟳ Renew All Now</button>
+  </div>
+
+  <div class="log-section">
+    <div class="section-label">Activity Log</div>
+    <div class="log-list" id="logList"></div>
+  </div>
+
+  <div class="footer-links">
+    <button class="footer-btn" id="instructionsBtn">? Instructions</button>
+    <button class="footer-btn red" id="bugBtn">⚑ Report a Bug</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
