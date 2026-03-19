@@ -72,7 +72,7 @@ $("scrapeBtn").addEventListener("click", async () => {
   } catch { showError("Invalid profile URL."); return; }
 
   hideError();
-  showPSA("Your profile page will open and auto-scroll. Do not close or interact with it.");
+  showPSA("Reading listings from your profile page...");
   $("scrapeBtn").disabled = true;
   $("scrapeBtn").textContent = "Scraping...";
 

@@ -120,117 +120,76 @@ async function scheduleAlarm() {
 // --- Scrape profile (images grabbed from profile page thumbnails) ---
 async function scrapeProfile(profileUrl) {
   try {
-    await setProgress({ stage: "scrolling", message: "Looking for your profile tab...", percent: 5 });
+    await setProgress({ stage: "scraping", message: "Finding your profile tab...", percent: 10 });
 
-    // First try to find an already-open tab matching the profile URL
-    const existingTabs = await chrome.tabs.query({ url: "https://www.depop.com/*" });
-    let tab = existingTabs.find(t => t.url && t.url.includes(profileUrl.replace('https://www.depop.com', '')));
+    // Find the already-open profile tab
+    const allTabs = await chrome.tabs.query({ url: "https://www.depop.com/*" });
+    const profilePath = profileUrl.replace('https://www.depop.com', '').replace(/\/$/, '');
+    const tab = allTabs.find(t => t.url && t.url.includes(profilePath));
 
     if (!tab) {
-      // Open a new active tab
-      const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      tab = await openTabActive(profileUrl);
-      await sleep(6000);
-    } else {
-      // Focus the existing tab
-      await chrome.tabs.update(tab.id, { active: true });
-      await sleep(2000);
+      await clearProgress();
+      return { ok: false, error: "Profile page not found. Please open your Depop profile page in Chrome first, scroll to the bottom to load all listings, then try again." };
     }
 
-    await setProgress({ stage: "scrolling", message: "Scrolling to load all listings...", percent: 10 });
+    await setProgress({ stage: "scraping", message: "Reading listings from page...", percent: 40 });
 
-    // Inject scraper inline
+    // Inject scraper inline into the existing tab
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: () => {
         window.__depopScraperResult = null;
 
-        async function runScraper() {
-          const SCROLL_PAUSE = 2500;
-          const MAX_ATTEMPTS = 80;
-          const STABLE_ROUNDS = 4;
-
-          function getListings() {
-            const links = document.querySelectorAll('a[href*="/products/"]');
-            const seen = new Set();
-            const results = [];
-            links.forEach(a => {
-              const href = a.href;
-              if (
-                /\/products\/[^/]+\/$/.test(href) &&
-                !href.includes('/products/create') &&
-                !href.includes('/products/edit') &&
-                !seen.has(href)
-              ) {
-                seen.add(href);
-                const img = a.querySelector('img');
-                const imageUrl = (img?.src && img.src.startsWith('http') ? img.src : null)
-                  || img?.dataset?.src || null;
-                const price = a.querySelector('[class*="price"],[class*="Price"]')?.innerText?.trim() || "";
-                const title = img?.alt?.trim() || "";
-                results.push({ productUrl: href, imageUrl, title, price });
-              }
-            });
-            return results;
-          }
-
-          function toEditUrl(productUrl) {
-            const match = productUrl.match(/\/products\/([^/]+)\//);
-            return match ? `https://www.depop.com/products/edit/${match[1]}/` : null;
-          }
-
-          window.scrollTo(0, 0);
-          await new Promise(r => setTimeout(r, 1000));
-
-          let lastCount = 0;
-          let stableRounds = 0;
-
-          for (let i = 0; i < MAX_ATTEMPTS; i++) {
-            window.scrollTo(0, document.body.scrollHeight);
-            document.documentElement.scrollTop = document.documentElement.scrollHeight;
-            document.querySelectorAll('main,[class*="shop"],[class*="grid"]').forEach(el => {
-              el.scrollTop = el.scrollHeight;
-            });
-            window.dispatchEvent(new Event('scroll'));
-
-            await new Promise(r => setTimeout(r, SCROLL_PAUSE));
-
-            const currentCount = getListings().length;
-            if (currentCount === lastCount) {
-              stableRounds++;
-              if (stableRounds >= STABLE_ROUNDS) break;
-            } else {
-              stableRounds = 0;
-              lastCount = currentCount;
+        function getListings() {
+          const links = document.querySelectorAll('a[href*="/products/"]');
+          const seen = new Set();
+          const results = [];
+          links.forEach(a => {
+            const href = a.href;
+            if (
+              /\/products\/[^/]+\/$/.test(href) &&
+              !href.includes('/products/create') &&
+              !href.includes('/products/edit') &&
+              !seen.has(href)
+            ) {
+              seen.add(href);
+              const img = a.querySelector('img');
+              const imageUrl = (img?.src && img.src.startsWith('http') ? img.src : null)
+                || img?.dataset?.src || null;
+              const price = a.querySelector('[class*="price"],[class*="Price"]')?.innerText?.trim() || "";
+              const title = img?.alt?.trim() || "";
+              results.push({ productUrl: href, imageUrl, title, price });
             }
-          }
-
-          window.scrollTo(0, 0);
-
-          const listings = getListings();
-          const editUrls = [];
-          const meta = {};
-
-          listings.forEach(({ productUrl, imageUrl, title, price }) => {
-            const editUrl = toEditUrl(productUrl);
-            if (!editUrl) return;
-            editUrls.push(editUrl);
-            const slug = productUrl.match(/\/products\/([^/]+)\//)?.[1] || "";
-            meta[editUrl] = { imageUrl, title, price, slug, productUrl, editUrl };
           });
-
-          window.__depopScraperResult = { editUrls, meta, count: editUrls.length };
+          return results;
         }
 
-        runScraper();
+        function toEditUrl(productUrl) {
+          const match = productUrl.match(/\/products\/([^/]+)\//);
+          return match ? `https://www.depop.com/products/edit/${match[1]}/` : null;
+        }
+
+        const listings = getListings();
+        const editUrls = [];
+        const meta = {};
+
+        listings.forEach(({ productUrl, imageUrl, title, price }) => {
+          const editUrl = toEditUrl(productUrl);
+          if (!editUrl) return;
+          editUrls.push(editUrl);
+          const slug = productUrl.match(/\/products\/([^/]+)\//)?.[1] || "";
+          meta[editUrl] = { imageUrl, title, price, slug, productUrl, editUrl };
+        });
+
+        window.__depopScraperResult = { editUrls, meta, count: editUrls.length };
       },
       world: "MAIN"
     });
 
-    // Poll until scraper stores its result in window.__depopScraperResult
+    // Poll for result (max 15 seconds — should be instant)
     let data = null;
-    for (let i = 0; i < 90; i++) {
-      await sleep(2000);
+    for (let i = 0; i < 15; i++) {
+      await sleep(1000);
       const poll = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: () => window.__depopScraperResult || null,
@@ -239,22 +198,15 @@ async function scrapeProfile(profileUrl) {
       data = poll?.[0]?.result;
       if (data) break;
     }
-    await chrome.tabs.remove(tab.id);
-
-    // Restore original tab focus
-    if (currentTab?.id) {
-      chrome.tabs.update(currentTab.id, { active: true }).catch(() => {});
-    }
 
     if (!data || !data.editUrls?.length) {
       await clearProgress();
-      return { ok: false, error: "No listings found. Make sure you're using your profile URL." };
+      return { ok: false, error: "No listings found on the page. Make sure you've scrolled to the bottom of your profile to load all listings." };
     }
 
     await setProgress({ stage: "saving", message: `Found ${data.editUrls.length} listings. Saving...`, percent: 85 });
     await sleep(400);
 
-    // Merge with existing
     const { listingUrls, listingMeta } = await chrome.storage.local.get(["listingUrls", "listingMeta"]);
     const existing = listingUrls || [];
     const existingMeta = listingMeta || {};
@@ -274,6 +226,7 @@ async function scrapeProfile(profileUrl) {
     return { ok: false, error: e.message };
   }
 }
+
 
 // --- Core renewal (reverse order) ---
 async function runRenewal() {
