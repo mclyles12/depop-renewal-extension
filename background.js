@@ -131,14 +131,95 @@ async function scrapeProfile(profileUrl) {
 
     await setProgress({ stage: "scrolling", message: "Scrolling to load all listings...", percent: 15 });
 
-    const result = await chrome.scripting.executeScript({
+    // Inject scraper as inline function — files injection has context issues
+    await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      files: ["scraper.js"],
+      func: () => {
+        window.__depopScraperResult = null;
+
+        async function runScraper() {
+          const SCROLL_PAUSE = 2500;
+          const MAX_ATTEMPTS = 80;
+          const STABLE_ROUNDS = 4;
+
+          function getListings() {
+            const links = document.querySelectorAll('a[href*="/products/"]');
+            const seen = new Set();
+            const results = [];
+            links.forEach(a => {
+              const href = a.href;
+              if (
+                /\/products\/[^/]+\/$/.test(href) &&
+                !href.includes('/products/create') &&
+                !href.includes('/products/edit') &&
+                !seen.has(href)
+              ) {
+                seen.add(href);
+                const img = a.querySelector('img');
+                const imageUrl = (img?.src && img.src.startsWith('http') ? img.src : null)
+                  || img?.dataset?.src || null;
+                const price = a.querySelector('[class*="price"],[class*="Price"]')?.innerText?.trim() || "";
+                const title = img?.alt?.trim() || "";
+                results.push({ productUrl: href, imageUrl, title, price });
+              }
+            });
+            return results;
+          }
+
+          function toEditUrl(productUrl) {
+            const match = productUrl.match(/\/products\/([^/]+)\//);
+            return match ? `https://www.depop.com/products/edit/${match[1]}/` : null;
+          }
+
+          window.scrollTo(0, 0);
+          await new Promise(r => setTimeout(r, 1000));
+
+          let lastCount = 0;
+          let stableRounds = 0;
+
+          for (let i = 0; i < MAX_ATTEMPTS; i++) {
+            window.scrollTo(0, document.body.scrollHeight);
+            document.documentElement.scrollTop = document.documentElement.scrollHeight;
+            document.querySelectorAll('main,[class*="shop"],[class*="grid"]').forEach(el => {
+              el.scrollTop = el.scrollHeight;
+            });
+            window.dispatchEvent(new Event('scroll'));
+
+            await new Promise(r => setTimeout(r, SCROLL_PAUSE));
+
+            const currentCount = getListings().length;
+            if (currentCount === lastCount) {
+              stableRounds++;
+              if (stableRounds >= STABLE_ROUNDS) break;
+            } else {
+              stableRounds = 0;
+              lastCount = currentCount;
+            }
+          }
+
+          window.scrollTo(0, 0);
+
+          const listings = getListings();
+          const editUrls = [];
+          const meta = {};
+
+          listings.forEach(({ productUrl, imageUrl, title, price }) => {
+            const editUrl = toEditUrl(productUrl);
+            if (!editUrl) return;
+            editUrls.push(editUrl);
+            const slug = productUrl.match(/\/products\/([^/]+)\//)?.[1] || "";
+            meta[editUrl] = { imageUrl, title, price, slug, productUrl, editUrl };
+          });
+
+          window.__depopScraperResult = { editUrls, meta, count: editUrls.length };
+        }
+
+        runScraper();
+      },
       world: "MAIN"
     });
 
-    // scraper.js stores result in window.__depopScraperResult when done
-    // Poll until it's ready (max 3 minutes)
+    // Poll until scraper stores its result in window.__depopScraperResult
     let data = null;
     for (let i = 0; i < 90; i++) {
       await sleep(2000);
