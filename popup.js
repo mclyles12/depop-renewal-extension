@@ -72,7 +72,7 @@ $("scrapeBtn").addEventListener("click", async () => {
   } catch { showError("Invalid profile URL."); return; }
 
   hideError();
-  showPSA();
+  showPSA("Your profile page will open and auto-scroll. Do not close or interact with it.");
   $("scrapeBtn").disabled = true;
   $("scrapeBtn").textContent = "Scraping...";
 
@@ -99,7 +99,7 @@ $("scrapeBtn").addEventListener("click", async () => {
 $("runBtn").addEventListener("click", async () => {
   if (!listings.length) { showError("Scrape your listings first."); return; }
   hideError();
-  showPSA();
+  showPSA("Tabs will open and close automatically. Do not interact with them.");
   $("runBtn").disabled = true;
   $("runBtn").textContent = "Running...";
 
@@ -161,7 +161,11 @@ function clearProgressUI() {
 }
 
 // --- PSA ---
-function showPSA() { $("psaBanner").classList.add("visible"); }
+function showPSA(msg) {
+  const b = $("psaBanner");
+  if (msg) b.textContent = "⚠ " + msg;
+  b.classList.add("visible");
+}
 function hidePSA() { $("psaBanner").classList.remove("visible"); }
 
 // --- Listings ---

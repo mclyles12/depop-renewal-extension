@@ -120,18 +120,26 @@ async function scheduleAlarm() {
 // --- Scrape profile (images grabbed from profile page thumbnails) ---
 async function scrapeProfile(profileUrl) {
   try {
-    await setProgress({ stage: "scrolling", message: "Loading your profile...", percent: 5 });
+    await setProgress({ stage: "scrolling", message: "Looking for your profile tab...", percent: 5 });
 
-    // Get current active tab to restore focus after scraping
-    const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    // First try to find an already-open tab matching the profile URL
+    const existingTabs = await chrome.tabs.query({ url: "https://www.depop.com/*" });
+    let tab = existingTabs.find(t => t.url && t.url.includes(profileUrl.replace('https://www.depop.com', '')));
 
-    // Open as ACTIVE tab so IntersectionObserver fires for infinite scroll
-    const tab = await openTabActive(profileUrl);
-    await sleep(5000);
+    if (!tab) {
+      // Open a new active tab
+      const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      tab = await openTabActive(profileUrl);
+      await sleep(6000);
+    } else {
+      // Focus the existing tab
+      await chrome.tabs.update(tab.id, { active: true });
+      await sleep(2000);
+    }
 
-    await setProgress({ stage: "scrolling", message: "Scrolling to load all listings...", percent: 15 });
+    await setProgress({ stage: "scrolling", message: "Scrolling to load all listings...", percent: 10 });
 
-    // Inject scraper as inline function — files injection has context issues
+    // Inject scraper inline
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: () => {
