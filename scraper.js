@@ -1,25 +1,42 @@
 // scraper.js — injected into a Depop profile page
-// Auto-scrolls infinite scroll until all listings are loaded
+// Auto-scrolls, collects listing URLs AND thumbnail images in one pass
 
 (async function () {
-  const SCROLL_PAUSE = 2500;  // wait 2.5s after each scroll for content to load
-  const MAX_ATTEMPTS = 80;    // up to ~200 seconds of scrolling
-  const STABLE_ROUNDS = 4;    // stop after 4 consecutive rounds with no new listings
+  const SCROLL_PAUSE = 2500;
+  const MAX_ATTEMPTS = 80;
+  const STABLE_ROUNDS = 4;
 
-  function getListingUrls() {
+  function getListings() {
     const links = document.querySelectorAll('a[href*="/products/"]');
-    const urls = new Set();
+    const seen = new Set();
+    const results = [];
+
     links.forEach(a => {
       const href = a.href;
       if (
         /\/products\/[^/]+\/$/.test(href) &&
         !href.includes('/products/create') &&
-        !href.includes('/products/edit')
+        !href.includes('/products/edit') &&
+        !seen.has(href)
       ) {
-        urls.add(href);
+        seen.add(href);
+
+        // Grab thumbnail image from within the link element
+        const img = a.querySelector('img');
+        const imageUrl = img?.src || img?.dataset?.src || null;
+
+        // Grab price if visible
+        const priceEl = a.querySelector('[class*="price"], [class*="Price"]');
+        const price = priceEl?.innerText?.trim() || "";
+
+        // Grab title/alt text
+        const title = img?.alt?.trim() || "";
+
+        results.push({ productUrl: href, imageUrl, title, price });
       }
     });
-    return Array.from(urls);
+
+    return results;
   }
 
   function toEditUrl(productUrl) {
@@ -28,7 +45,7 @@
     return `https://www.depop.com/products/edit/${match[1]}/`;
   }
 
-  // Scroll to top first so we start fresh
+  // Start from top
   window.scrollTo(0, 0);
   await new Promise(r => setTimeout(r, 1000));
 
@@ -36,18 +53,17 @@
   let stableRounds = 0;
 
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
-    // Scroll in increments rather than jumping to bottom
-    // This gives Depop's lazy loader time to fire
     const currentHeight = document.body.scrollHeight;
     window.scrollTo(0, currentHeight);
-
     await new Promise(r => setTimeout(r, SCROLL_PAUSE));
 
-    // Also try scrolling the main content container if it exists
-    const scroller = document.querySelector('main') || document.querySelector('[class*="shop"]') || document.body;
+    // Also try the main content container
+    const scroller = document.querySelector('main') ||
+                     document.querySelector('[class*="shop"]') ||
+                     document.body;
     scroller.scrollTop = scroller.scrollHeight;
 
-    const currentCount = getListingUrls().length;
+    const currentCount = getListings().length;
 
     if (currentCount === lastCount) {
       stableRounds++;
@@ -58,11 +74,19 @@
     }
   }
 
-  // Scroll back to top
   window.scrollTo(0, 0);
 
-  const productUrls = getListingUrls();
-  const editUrls = productUrls.map(toEditUrl).filter(Boolean);
+  const listings = getListings();
+  const editUrls = [];
+  const meta = {};
 
-  return { editUrls, productUrls, count: editUrls.length };
+  listings.forEach(({ productUrl, imageUrl, title, price }) => {
+    const editUrl = toEditUrl(productUrl);
+    if (!editUrl) return;
+    editUrls.push(editUrl);
+    const slug = productUrl.match(/\/products\/([^/]+)\//)?.[1] || "";
+    meta[editUrl] = { imageUrl, title, price, slug, productUrl, editUrl };
+  });
+
+  return { editUrls, meta, count: editUrls.length };
 })();

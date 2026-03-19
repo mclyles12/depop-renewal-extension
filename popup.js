@@ -1,10 +1,11 @@
-// popup.js — Depop Listing Renewer v1.3
+// popup.js — Depop Listing Renewer v1.4
 
 const $ = id => document.getElementById(id);
 
 let listings = [];
 let enabled = false;
 let currentInterval = "48h";
+let progressPoller = null;
 
 // --- Init ---
 async function init() {
@@ -18,6 +19,9 @@ async function init() {
   renderStatus(status);
   renderLog(status.log || []);
   renderIntervalPills();
+
+  // Resume progress display if something was running
+  if (status.progress) renderProgress(status.progress);
 }
 
 // --- Toggle ---
@@ -34,7 +38,7 @@ function renderToggle() {
   $("statusDot").classList.toggle("active", enabled);
 }
 
-// --- Interval pills --- (all unlocked)
+// --- Interval pills ---
 function renderIntervalPills() {
   document.querySelectorAll(".pill").forEach(pill => {
     pill.classList.toggle("active", pill.dataset.interval === currentInterval);
@@ -56,44 +60,115 @@ $("layoutBtn").addEventListener("click", () => {
   sendMsg({ action: "openLayoutManager" });
 });
 
-// --- Add listing ---
-$("addBtn").addEventListener("click", addListing);
-$("urlInput").addEventListener("keydown", e => { if (e.key === "Enter") addListing(); });
+// --- Scrape ---
+$("scrapeBtn").addEventListener("click", async () => {
+  const raw = $("profileInput").value.trim();
+  if (!raw) { showError("Enter your Depop profile URL first."); return; }
 
-function addListing() {
-  const raw = $("urlInput").value.trim();
-  const url = normalizeUrl(raw);
-  if (!url) { showError("Enter a valid Depop listing edit URL."); return; }
-  if (!isValidEditUrl(url)) { showError("Must be an edit page.\nExample: depop.com/products/edit/your-slug/"); return; }
-  if (listings.includes(url)) { showError("Already in your list."); return; }
-  hideError();
-  listings.push(url);
-  saveListings();
-  renderListings();
-  $("urlInput").value = "";
-}
-
-function normalizeUrl(raw) {
-  if (!raw) return null;
+  let profileUrl;
   try {
     const u = new URL(raw.startsWith("http") ? raw : `https://${raw}`);
-    const path = u.pathname.endsWith("/") ? u.pathname : u.pathname + "/";
-    return `https://www.depop.com${path}`;
-  } catch { return null; }
+    profileUrl = `https://www.depop.com${u.pathname.endsWith("/") ? u.pathname : u.pathname + "/"}`;
+  } catch { showError("Invalid profile URL."); return; }
+
+  hideError();
+  showPSA();
+  $("scrapeBtn").disabled = true;
+  $("scrapeBtn").textContent = "Scraping...";
+
+  startProgressPoller();
+  const result = await sendMsg({ action: "scrapeProfile", profileUrl });
+  stopProgressPoller();
+  clearProgressUI();
+  hidePSA();
+
+  $("scrapeBtn").disabled = false;
+  $("scrapeBtn").textContent = "⟲ Scrape";
+
+  if (result.ok) {
+    const status = await sendMsg({ action: "getStatus" });
+    listings = status.listingUrls || [];
+    renderListings();
+    renderLog(status.log || []);
+  } else {
+    showError(result.error || "Scrape failed — try again.");
+  }
+});
+
+// --- Run Now ---
+$("runBtn").addEventListener("click", async () => {
+  if (!listings.length) { showError("Scrape your listings first."); return; }
+  hideError();
+  showPSA();
+  $("runBtn").disabled = true;
+  $("runBtn").textContent = "Running...";
+
+  sendMsg({ action: "runNow" });
+  startProgressPoller(true);
+
+  // Progress poller will auto-stop when progress clears
+});
+
+// --- Progress poller ---
+function startProgressPoller(isRenewal = false) {
+  if (progressPoller) clearInterval(progressPoller);
+  progressPoller = setInterval(async () => {
+    const status = await sendMsg({ action: "getStatus" });
+    renderLog(status.log || []);
+    renderStatus(status);
+
+    if (status.progress) {
+      renderProgress(status.progress);
+      if (status.progress.stage === "done") {
+        setTimeout(() => {
+          stopProgressPoller();
+          clearProgressUI();
+          hidePSA();
+          if (isRenewal) {
+            $("runBtn").disabled = false;
+            $("runBtn").textContent = "⟳ Renew All Now";
+          }
+        }, 1800);
+      }
+    } else if (!status.progress && isRenewal) {
+      // Progress cleared — renewal done
+      stopProgressPoller();
+      clearProgressUI();
+      hidePSA();
+      $("runBtn").disabled = false;
+      $("runBtn").textContent = "⟳ Renew All Now";
+    }
+  }, 800);
 }
 
-function isValidEditUrl(url) {
-  return /^https:\/\/www\.depop\.com\/products\/edit\/[^/]+\/$/.test(url);
+function stopProgressPoller() {
+  if (progressPoller) { clearInterval(progressPoller); progressPoller = null; }
 }
 
+function renderProgress(progress) {
+  if (!progress) return;
+  $("progressWrap").classList.add("visible");
+  $("progressMsg").textContent = progress.message || "Working...";
+  $("progressPct").textContent = `${progress.percent || 0}%`;
+  $("progressBar").style.width = `${progress.percent || 0}%`;
+  $("progressBar").classList.toggle("green", progress.stage === "done");
+}
+
+function clearProgressUI() {
+  $("progressWrap").classList.remove("visible");
+  $("progressBar").style.width = "0%";
+  $("progressBar").classList.remove("green");
+}
+
+// --- PSA ---
+function showPSA() { $("psaBanner").classList.add("visible"); }
+function hidePSA() { $("psaBanner").classList.remove("visible"); }
+
+// --- Listings ---
 function removeListing(url) {
   listings = listings.filter(u => u !== url);
-  saveListings();
-  renderListings();
-}
-
-function saveListings() {
   sendMsg({ action: "setListings", urls: listings });
+  renderListings();
 }
 
 function renderListings() {
@@ -125,67 +200,6 @@ function renderListings() {
     list.appendChild(item);
   });
 }
-
-// --- Scrape ---
-$("scrapeBtn").addEventListener("click", async () => {
-  const raw = $("profileInput").value.trim();
-  if (!raw) { showError("Enter your Depop profile URL first."); return; }
-
-  let profileUrl;
-  try {
-    const u = new URL(raw.startsWith("http") ? raw : `https://${raw}`);
-    profileUrl = `https://www.depop.com${u.pathname.endsWith("/") ? u.pathname : u.pathname + "/"}`;
-  } catch { showError("Invalid profile URL."); return; }
-
-  hideError();
-  showPSA();
-  $("scrapeBtn").disabled = true;
-  $("scrapeBtn").textContent = "Scraping...";
-
-  const result = await sendMsg({ action: "scrapeProfile", profileUrl });
-
-  $("scrapeBtn").disabled = false;
-  $("scrapeBtn").textContent = "⟲ Scrape";
-  hidePSA();
-
-  if (result.ok) {
-    const status = await sendMsg({ action: "getStatus" });
-    listings = status.listingUrls || [];
-    renderListings();
-    renderLog(status.log || []);
-  } else {
-    showError(result.error || "Scrape failed — try again.");
-  }
-});
-
-// --- Run Now ---
-$("runBtn").addEventListener("click", async () => {
-  if (!listings.length) { showError("Add at least one listing first."); return; }
-  hideError();
-  showPSA();
-  $("runBtn").disabled = true;
-  $("runBtn").textContent = "Running...";
-
-  sendMsg({ action: "runNow" });
-
-  let polls = 0;
-  const interval = setInterval(async () => {
-    const status = await sendMsg({ action: "getStatus" });
-    renderLog(status.log || []);
-    renderStatus(status);
-    polls++;
-    if (polls >= 12) {
-      clearInterval(interval);
-      $("runBtn").disabled = false;
-      $("runBtn").textContent = "⟳ Renew All Now";
-      hidePSA();
-    }
-  }, 2500);
-});
-
-// --- PSA ---
-function showPSA() { $("psaBanner").classList.add("visible"); }
-function hidePSA() { $("psaBanner").classList.remove("visible"); }
 
 // --- Status ---
 function renderStatus(status) {
@@ -235,7 +249,11 @@ function shortTime(t) {
   catch { return t; }
 }
 
-// --- Bug report ---
+// --- Error ---
+function showError(msg) { const b = $("errorBanner"); b.textContent = msg; b.classList.add("visible"); }
+function hideError() { $("errorBanner").classList.remove("visible"); }
+
+// --- Footer buttons ---
 $("bugBtn").addEventListener("click", () => {
   const subject = encodeURIComponent("Depop Renewer Bug Report");
   const body = encodeURIComponent(
@@ -252,23 +270,15 @@ What I expected:
 What actually happened:
 [describe what went wrong]
 
-Extension version: 1.3.0
+Extension version: 1.4.0
 Chrome version: [your Chrome version]
-`
-  );
-  chrome.tabs.create({
-    url: `mailto:lylesmaggie55@gmail.com?subject=${subject}&body=${body}`
-  });
+`);
+  chrome.tabs.create({ url: `mailto:lylesmaggie55@gmail.com?subject=${subject}&body=${body}` });
 });
 
-// --- Instructions ---
 $("instructionsBtn").addEventListener("click", () => {
   chrome.tabs.create({ url: chrome.runtime.getURL("instructions.html") });
 });
-
-
-function showError(msg) { const b = $("errorBanner"); b.textContent = msg; b.classList.add("visible"); }
-function hideError() { $("errorBanner").classList.remove("visible"); }
 
 // --- Messaging ---
 function sendMsg(msg) {

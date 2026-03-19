@@ -34,57 +34,15 @@
     }
 
     /* Header */
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--border);
-    }
-
+    .header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border); }
     .brand { display: flex; align-items: center; gap: 7px; }
-
-    .brand-dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 6px var(--accent);
-      flex-shrink: 0;
-      transition: background 0.3s, box-shadow 0.3s;
-    }
-    .brand-dot.active {
-      background: var(--green);
-      box-shadow: 0 0 8px var(--green);
-      animation: pulse 2s infinite;
-    }
+    .brand-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); flex-shrink: 0; transition: background 0.3s, box-shadow 0.3s; }
+    .brand-dot.active { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.45} }
-
-    .brand-name {
-      font-family: var(--mono);
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-    }
-
+    .brand-name { font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; }
     .header-right { display: flex; align-items: center; gap: 8px; }
-
-    /* Layout manager button */
-    .layout-btn {
-      background: none;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      color: var(--muted);
-      font-size: 13px;
-      cursor: pointer;
-      padding: 3px 6px;
-      line-height: 1;
-      transition: all 0.15s;
-      title: "Visual Layout Manager";
-    }
+    .layout-btn { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--muted); font-size: 13px; cursor: pointer; padding: 3px 6px; line-height: 1; transition: all 0.15s; }
     .layout-btn:hover { border-color: var(--accent); color: var(--accent); }
-
-    /* Toggle */
     .toggle { position: relative; width: 34px; height: 19px; cursor: pointer; flex-shrink: 0; }
     .toggle input { display: none; }
     .toggle-track { position: absolute; inset: 0; border-radius: 10px; background: var(--border); transition: background 0.2s; }
@@ -92,26 +50,21 @@
     .toggle-thumb { position: absolute; top: 2.5px; left: 2.5px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform 0.2s; pointer-events: none; }
     .toggle input:checked ~ .toggle-thumb { transform: translateX(15px); }
 
-    /* PSA Banner */
-    .psa-banner {
-      display: none;
-      margin: 0;
-      padding: 8px 14px;
-      background: var(--amber-dim);
-      border-bottom: 1px solid var(--amber);
-      font-size: 10px;
-      font-family: var(--mono);
-      color: var(--amber);
-      line-height: 1.5;
-    }
+    /* PSA */
+    .psa-banner { display: none; padding: 8px 14px; background: var(--amber-dim); border-bottom: 1px solid var(--amber); font-size: 10px; font-family: var(--mono); color: var(--amber); line-height: 1.5; }
     .psa-banner.visible { display: block; }
 
+    /* Progress bar */
+    .progress-wrap { display: none; padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
+    .progress-wrap.visible { display: block; }
+    .progress-label { font-size: 10px; font-family: var(--mono); color: var(--text); margin-bottom: 6px; display: flex; justify-content: space-between; }
+    .progress-label span { color: var(--muted); }
+    .progress-track { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .progress-bar { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; width: 0%; }
+    .progress-bar.green { background: var(--green); }
+
     /* Status row */
-    .status-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      border-bottom: 1px solid var(--border);
-    }
+    .status-row { display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid var(--border); }
     .stat { padding: 9px 14px; border-right: 1px solid var(--border); }
     .stat:last-child { border-right: none; }
     .stat-label { font-size: 9px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 3px; }
@@ -122,12 +75,7 @@
     .interval-section { padding: 10px 14px; border-bottom: 1px solid var(--border); }
     .section-label { font-size: 9px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 7px; }
     .interval-pills { display: flex; gap: 5px; }
-    .pill {
-      flex: 1; padding: 5px 0; text-align: center;
-      border-radius: 4px; font-size: 11px; font-family: var(--mono);
-      border: 1px solid var(--border); background: var(--surface);
-      color: var(--muted); cursor: pointer; transition: all 0.15s;
-    }
+    .pill { flex: 1; padding: 5px 0; text-align: center; border-radius: 4px; font-size: 11px; font-family: var(--mono); border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; transition: all 0.15s; }
     .pill:hover { border-color: var(--text); color: var(--text); }
     .pill.active { border-color: var(--green); color: var(--green); background: var(--green-dim); }
 
@@ -142,21 +90,12 @@
     .remove-btn:hover { color: var(--accent); }
     .empty-state { text-align: center; padding: 8px 0; font-size: 10px; font-family: var(--mono); color: var(--muted); }
 
-    /* Input rows */
-    .input-row { display: flex; gap: 5px; margin-bottom: 6px; }
-    .input-row:last-child { margin-bottom: 0; }
-    .url-input {
-      flex: 1; background: var(--surface); border: 1px solid var(--border);
-      border-radius: 4px; color: var(--text); font-size: 10px;
-      font-family: var(--mono); padding: 6px 7px; outline: none;
-      transition: border-color 0.15s; min-width: 0;
-    }
+    /* Input row */
+    .input-row { display: flex; gap: 5px; }
+    .url-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 10px; font-family: var(--mono); padding: 6px 7px; outline: none; transition: border-color 0.15s; min-width: 0; }
     .url-input::placeholder { color: var(--muted); }
-    .url-input:focus { border-color: var(--accent); }
     .url-input.profile:focus { border-color: var(--green); }
     .action-btn { border-radius: 4px; font-size: 10px; font-family: var(--mono); padding: 6px 9px; cursor: pointer; white-space: nowrap; transition: background 0.15s; flex-shrink: 0; }
-    .action-btn.add { background: var(--accent-dim); border: 1px solid var(--accent); color: var(--accent); }
-    .action-btn.add:hover { background: rgba(255,60,95,0.25); }
     .action-btn.scrape { background: var(--green-dim); border: 1px solid var(--green); color: var(--green); }
     .action-btn.scrape:hover { background: rgba(46,204,113,0.22); }
     .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -172,37 +111,21 @@
     .error-banner { margin: 0 14px 6px; padding: 5px 8px; background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 4px; font-size: 10px; font-family: var(--mono); color: var(--accent); display: none; }
     .error-banner.visible { display: block; }
 
-    /* Footer links */
-    .footer-links {
-      display: flex;
-      gap: 0;
-      border-top: 1px solid var(--border);
-    }
-    .footer-btn {
-      flex: 1;
-      background: none;
-      border: none;
-      border-right: 1px solid var(--border);
-      color: var(--muted);
-      font-family: var(--mono);
-      font-size: 10px;
-      padding: 8px 0;
-      cursor: pointer;
-      transition: all 0.15s;
-      letter-spacing: 0.03em;
-    }
-    .footer-btn:last-child { border-right: none; }
-    .footer-btn:hover { background: var(--surface); color: var(--text); }
-    .footer-btn.red:hover { color: var(--accent); background: var(--accent-dim); }
-
     /* Log */
-    .log-section { padding: 10px 14px 12px; }
+    .log-section { padding: 10px 14px; border-bottom: 1px solid var(--border); }
     .log-list { display: flex; flex-direction: column; gap: 3px; max-height: 80px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
     .log-entry { display: flex; gap: 6px; font-size: 10px; font-family: var(--mono); line-height: 1.4; }
     .log-time { color: var(--muted); flex-shrink: 0; }
     .log-msg { color: var(--text); }
     .log-msg.success { color: var(--green); }
     .log-msg.error { color: var(--accent); }
+
+    /* Footer */
+    .footer-links { display: flex; border-top: 1px solid var(--border); }
+    .footer-btn { flex: 1; background: none; border: none; border-right: 1px solid var(--border); color: var(--muted); font-family: var(--mono); font-size: 10px; padding: 8px 0; cursor: pointer; transition: all 0.15s; letter-spacing: 0.03em; }
+    .footer-btn:last-child { border-right: none; }
+    .footer-btn:hover { background: var(--surface); color: var(--text); }
+    .footer-btn.red:hover { color: var(--accent); background: var(--accent-dim); }
   </style>
 </head>
 <body>
@@ -222,9 +145,19 @@
     </div>
   </div>
 
-  <!-- PSA warning shown during scrape/renew -->
   <div class="psa-banner" id="psaBanner">
     ⚠ Tabs will open &amp; close automatically.<br>Do not click or close them until this finishes.
+  </div>
+
+  <!-- Progress bar -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-label">
+      <span id="progressMsg">Working...</span>
+      <span id="progressPct">0%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
   </div>
 
   <div class="status-row">
@@ -257,16 +190,9 @@
     <div class="section-header">
       <span class="section-label" style="margin:0">Your Listings</span>
     </div>
-
     <div class="listing-list" id="listingList">
-      <div class="empty-state" id="emptyState">No listings added yet</div>
+      <div class="empty-state" id="emptyState">No listings yet — use Scrape below</div>
     </div>
-
-    <div class="input-row">
-      <input type="text" class="url-input" id="urlInput" placeholder="depop.com/products/edit/slug/" />
-      <button class="action-btn add" id="addBtn">+ Add</button>
-    </div>
-
     <div class="input-row">
       <input type="text" class="url-input profile" id="profileInput" placeholder="depop.com/yourshopname/" />
       <button class="action-btn scrape" id="scrapeBtn">⟲ Scrape</button>
