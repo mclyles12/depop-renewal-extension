@@ -4,20 +4,21 @@ let dragSrc = null;
 let progressPoller = null;
 
 async function init() {
-  const data = await getStorage(["listingUrls", "listingMeta", "progress"]);
-  listings = data.listingUrls || [];
-  meta = data.listingMeta || {};
+  const status = await getStatus();
+  applyListingState(status);
 
-  if (!listings.length) {
-    document.getElementById("emptyState").classList.add("visible");
-    document.getElementById("statusText").textContent = "No listings loaded";
-    return;
+  if (status.progress) {
+    renderProgress(status.progress);
+  } else {
+    clearProgressUI();
   }
 
-  renderGrid();
-  updateStatus();
+  if (status.log?.length) {
+    const last = status.log[status.log.length - 1];
+    setLog(last.msg, last.msg.startsWith("✓") || last.msg.includes("Done") ? "success" : last.msg.startsWith("✗") ? "error" : "");
+  }
 
-  if (data.progress) renderProgress(data.progress);
+  chrome.storage.onChanged.addListener(onStorageChanged);
 }
 
 function renderGrid() {
@@ -76,6 +77,54 @@ function makePlaceholder() {
   ph.className = "item-img-placeholder";
   ph.textContent = "🛍";
   return ph;
+}
+
+function applyListingState(state) {
+  listings = state.listingUrls || [];
+  meta = state.listingMeta || {};
+
+  const emptyState = document.getElementById("emptyState");
+  emptyState.classList.toggle("visible", listings.length === 0);
+
+  if (!listings.length) {
+    document.getElementById("statusText").textContent = "No listings loaded";
+    const pill = document.getElementById("statusPill");
+    pill.textContent = "0 total";
+    pill.className = "status-pill";
+    document.getElementById("grid").innerHTML = "";
+    return;
+  }
+
+  renderGrid();
+  updateStatus();
+}
+
+function onStorageChanged(changes, areaName) {
+  if (areaName !== "local") return;
+
+  if (changes.listingUrls || changes.listingMeta) {
+    applyListingState({
+      listingUrls: changes.listingUrls?.newValue ?? listings,
+      listingMeta: changes.listingMeta?.newValue ?? meta
+    });
+  }
+
+  if (changes.progress) {
+    const progress = changes.progress.newValue;
+    if (progress) {
+      renderProgress(progress);
+    } else {
+      clearProgressUI();
+      document.getElementById("psaBanner").classList.remove("visible");
+      document.getElementById("renewBtn").disabled = false;
+      document.getElementById("renewBtn").textContent = "⟳ Renew in This Order";
+    }
+  }
+
+  if (changes.log?.newValue?.length) {
+    const last = changes.log.newValue[changes.log.newValue.length - 1];
+    setLog(last.msg, last.msg.startsWith("✓") || last.msg.includes("Done") ? "success" : last.msg.startsWith("✗") ? "error" : "");
+  }
 }
 
 function onDragStart(e) {
@@ -208,6 +257,14 @@ function getStorage(keys) {
 
 function setStorage(data) {
   return new Promise(resolve => chrome.storage.local.set(data, resolve));
+}
+
+async function getStatus() {
+  try {
+    return await chrome.runtime.sendMessage({ action: "getStatus" });
+  } catch {
+    return getStorage(["listingUrls", "listingMeta", "progress", "log"]);
+  }
 }
 
 init();
