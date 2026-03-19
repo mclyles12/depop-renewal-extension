@@ -122,17 +122,27 @@ async function scrapeProfile(profileUrl) {
   try {
     await setProgress({ stage: "scrolling", message: "Loading your profile...", percent: 5 });
 
-    const tab = await openTabHidden(profileUrl);
-    await sleep(3000);
+    // Get current active tab to restore focus after scraping
+    const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    // Open as ACTIVE tab so IntersectionObserver fires for infinite scroll
+    const tab = await openTabActive(profileUrl);
+    await sleep(5000);
 
     await setProgress({ stage: "scrolling", message: "Scrolling to load all listings...", percent: 15 });
 
     const result = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      files: ["scraper.js"]
+      files: ["scraper.js"],
+      world: "MAIN"
     });
 
     await chrome.tabs.remove(tab.id);
+
+    // Restore original tab focus
+    if (currentTab?.id) {
+      chrome.tabs.update(currentTab.id, { active: true }).catch(() => {});
+    }
 
     const data = result?.[0]?.result;
     if (!data || !data.editUrls?.length) {
@@ -260,7 +270,24 @@ function clickSaveButton() {
   return { ok: false };
 }
 
-// --- Open tab in background ---
+// --- Open tab as active (for scraping — needed for IntersectionObserver) ---
+function openTabActive(url) {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.create({ url, active: true }, (tab) => {
+      if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+      const listener = (tabId, changeInfo) => {
+        if (tabId === tab.id && changeInfo.status === "complete") {
+          chrome.tabs.onUpdated.removeListener(listener);
+          resolve(tab);
+        }
+      };
+      chrome.tabs.onUpdated.addListener(listener);
+      setTimeout(() => { chrome.tabs.onUpdated.removeListener(listener); resolve(tab); }, 15000);
+    });
+  });
+}
+
+// --- Open tab in background (for renewals) ---
 function openTabHidden(url) {
   return new Promise((resolve, reject) => {
     chrome.tabs.create({ url, active: false }, (tab) => {
