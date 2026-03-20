@@ -34,13 +34,49 @@ let listings = [];
         item.dataset.index = index;
         item.dataset.url = editUrl;
 
-        // Position badge
-        const pos = document.createElement("div");
-        pos.className = "item-position";
-        pos.textContent = `#${index + 1}`;
-        item.appendChild(pos);
+        // Position — editable input
+        const posInput = document.createElement("input");
+        posInput.type = "number";
+        posInput.className = "item-position";
+        posInput.value = index + 1;
+        posInput.min = 1;
+        posInput.max = listings.length;
+        posInput.title = "Type a number and press Enter to reposition";
 
-        // Image — loaded from cached meta (instant)
+        // Stop drag when interacting with input
+        posInput.addEventListener("mousedown", e => e.stopPropagation());
+        posInput.addEventListener("dragstart", e => e.stopPropagation());
+
+        posInput.addEventListener("keydown", e => {
+          if (e.key === "Enter") {
+            const newPos = parseInt(posInput.value);
+            if (!newPos || newPos < 1 || newPos > listings.length) {
+              posInput.value = index + 1; // reset invalid
+              return;
+            }
+            const toIndex = newPos - 1;
+            if (toIndex === index) return;
+            // Move listing from current index to new position
+            const moved = listings.splice(index, 1)[0];
+            listings.splice(toIndex, 0, moved);
+            renderGrid();
+            updateStatus();
+            setLog(`Moved to position #${newPos} — hit Save Order to keep it.`, "");
+            // Focus the same card after re-render
+            setTimeout(() => {
+              const inputs = document.querySelectorAll(".item-position");
+              if (inputs[toIndex]) inputs[toIndex].focus();
+            }, 50);
+          }
+          if (e.key === "Escape") {
+            posInput.value = index + 1;
+            posInput.blur();
+          }
+        });
+
+        item.appendChild(posInput);
+
+        // Image
         if (info.imageUrl) {
           const img = document.createElement("img");
           img.className = "item-img";
