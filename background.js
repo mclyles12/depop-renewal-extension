@@ -296,7 +296,7 @@ async function runRenewal() {
         func: clickSaveButton
       });
 
-      await sleep(randomBetween(2000, 4000));
+      await sleep(randomBetween(6000, 9000));
       await chrome.tabs.remove(tab.id);
 
       const saveResult = result?.[0]?.result;
