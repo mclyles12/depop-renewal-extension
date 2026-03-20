@@ -16,7 +16,9 @@ const HUMAN_DELAY_MAX = 25000;
 const JITTER_MIN = -10;
 const JITTER_MAX = 10;
 
-// --- Init ---
+let stopRequested = false;
+
+
 chrome.runtime.onInstalled.addListener(async () => {
   const existing = await chrome.storage.local.get(["enabled", "listingUrls", "interval", "listingMeta"]);
   if (existing.enabled === undefined) {
@@ -41,6 +43,11 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
 // --- Messages ---
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg.action === "stopNow") {
+    stopRequested = true;
+    sendResponse({ ok: true });
+    return true;
+  }
   if (msg.action === "runNow") {
     runRenewal().then(() => sendResponse({ ok: true }));
     return true;
@@ -120,16 +127,15 @@ async function scheduleAlarm() {
 // --- Scrape profile (images grabbed from profile page thumbnails) ---
 async function scrapeProfile(profileUrl) {
   try {
-    await setProgress({ stage: "scraping", message: "Finding your profile tab...", percent: 10 });
+    await setProgress({ stage: "scraping", message: "Finding your Depop tab...", percent: 10 });
 
-    // Find the already-open profile tab
-    const allTabs = await chrome.tabs.query({ url: "https://www.depop.com/*" });
-    const profilePath = profileUrl.replace('https://www.depop.com', '').replace(/\/$/, '');
-    const tab = allTabs.find(t => t.url && t.url.includes(profilePath));
+    // Find any open Depop tab — user should already be on their profile page
+    const allTabs = await chrome.tabs.query({});
+    const tab = allTabs.find(t => t.url && t.url.includes('depop.com') && !t.url.includes('/products/'));
 
     if (!tab) {
       await clearProgress();
-      return { ok: false, error: "Profile page not found. Please open your Depop profile page in Chrome first, scroll to the bottom to load all listings, then try again." };
+      return { ok: false, error: "No Depop profile tab found. Open your profile page in Chrome, scroll to the bottom, then try again." };
     }
 
     await setProgress({ stage: "scraping", message: "Reading listings from page...", percent: 40 });
@@ -141,6 +147,18 @@ async function scrapeProfile(profileUrl) {
         window.__depopScraperResult = null;
 
         function getListings() {
+          // Find all sold listing URLs so we can exclude them
+          const soldUrls = new Set();
+          document.querySelectorAll('p, h2, h3').forEach(el => {
+            if (el.innerText?.trim() === 'Sold items') {
+              // Grab all product links in the sold section (parent section or next sibling container)
+              const section = el.closest('section') || el.parentElement;
+              section?.querySelectorAll('a[href*="/products/"]').forEach(a => {
+                soldUrls.add(a.href);
+              });
+            }
+          });
+
           const links = document.querySelectorAll('a[href*="/products/"]');
           const seen = new Set();
           const results = [];
@@ -150,7 +168,8 @@ async function scrapeProfile(profileUrl) {
               /\/products\/[^/]+\/$/.test(href) &&
               !href.includes('/products/create') &&
               !href.includes('/products/edit') &&
-              !seen.has(href)
+              !seen.has(href) &&
+              !soldUrls.has(href)  // exclude sold listings
             ) {
               seen.add(href);
               const img = a.querySelector('img');
@@ -236,6 +255,7 @@ async function runRenewal() {
     return;
   }
 
+  stopRequested = false;
   const reversed = [...listingUrls].reverse();
   const total = reversed.length;
   await appendLog(`Starting renewal of ${total} listing(s) in reverse order...`);
@@ -245,6 +265,11 @@ async function runRenewal() {
   let failCount = 0;
 
   for (let i = 0; i < reversed.length; i++) {
+    if (stopRequested) {
+      await appendLog(`⏹ Stopped after ${i} listing(s).`);
+      await clearProgress();
+      return;
+    }
     const url = reversed[i];
     const percent = Math.round(((i) / total) * 100);
     await setProgress({

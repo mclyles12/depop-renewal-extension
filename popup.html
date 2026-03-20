@@ -100,6 +100,21 @@
     .action-btn.scrape:hover { background: rgba(46,204,113,0.22); }
     .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+    .stop-btn {
+      background: none;
+      border: 1px solid var(--muted);
+      border-radius: 5px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 9px 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .stop-btn:hover { border-color: var(--accent); color: var(--accent); }
+
     /* Run button */
     .run-section { padding: 10px 14px; border-bottom: 1px solid var(--border); }
     .run-btn { width: 100%; background: var(--accent); border: none; border-radius: 5px; color: #fff; font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.06em; padding: 9px; cursor: pointer; transition: opacity 0.15s, transform 0.1s; text-transform: uppercase; }
@@ -194,15 +209,17 @@
       <div class="empty-state" id="emptyState">No listings yet — use Scrape below</div>
     </div>
     <div class="input-row">
-      <input type="text" class="url-input profile" id="profileInput" placeholder="depop.com/yourshopname/" />
-      <button class="action-btn scrape" id="scrapeBtn">⟲ Scrape</button>
+      <button class="action-btn scrape" id="scrapeBtn" style="width:100%;text-align:center">⟲ Scrape Listings From Open Depop Tab</button>
     </div>
   </div>
 
   <div class="error-banner" id="errorBanner"></div>
 
   <div class="run-section">
-    <button class="run-btn" id="runBtn">⟳ Renew All Now</button>
+    <div style="display:flex;gap:6px">
+      <button class="run-btn" id="runBtn">⟳ Renew All Now</button>
+      <button class="stop-btn" id="stopBtn" style="display:none">◼ Stop</button>
+    </div>
   </div>
 
   <div class="log-section">

@@ -62,22 +62,13 @@ $("layoutBtn").addEventListener("click", () => {
 
 // --- Scrape ---
 $("scrapeBtn").addEventListener("click", async () => {
-  const raw = $("profileInput").value.trim();
-  if (!raw) { showError("Enter your Depop profile URL first."); return; }
-
-  let profileUrl;
-  try {
-    const u = new URL(raw.startsWith("http") ? raw : `https://${raw}`);
-    profileUrl = `https://www.depop.com${u.pathname.endsWith("/") ? u.pathname : u.pathname + "/"}`;
-  } catch { showError("Invalid profile URL."); return; }
-
   hideError();
-  showPSA("Reading listings from your profile page...");
+  showPSA("Reading listings from your open Depop tab...");
   $("scrapeBtn").disabled = true;
   $("scrapeBtn").textContent = "Scraping...";
 
   startProgressPoller();
-  const result = await sendMsg({ action: "scrapeProfile", profileUrl });
+  const result = await sendMsg({ action: "scrapeProfile", profileUrl: "" });
   stopProgressPoller();
   clearProgressUI();
   hidePSA();
@@ -95,6 +86,17 @@ $("scrapeBtn").addEventListener("click", async () => {
   }
 });
 
+// --- Stop ---
+$("stopBtn").addEventListener("click", async () => {
+  await sendMsg({ action: "stopNow" });
+  $("stopBtn").style.display = "none";
+  $("runBtn").disabled = false;
+  $("runBtn").textContent = "⟳ Renew All Now";
+  stopProgressPoller();
+  clearProgressUI();
+  hidePSA();
+});
+
 // --- Run Now ---
 $("runBtn").addEventListener("click", async () => {
   if (!listings.length) { showError("Scrape your listings first."); return; }
@@ -102,6 +104,7 @@ $("runBtn").addEventListener("click", async () => {
   showPSA("Tabs will open and close automatically. Do not interact with them.");
   $("runBtn").disabled = true;
   $("runBtn").textContent = "Running...";
+  $("stopBtn").style.display = "block";
 
   sendMsg({ action: "runNow" });
   startProgressPoller(true);
@@ -127,16 +130,17 @@ function startProgressPoller(isRenewal = false) {
           if (isRenewal) {
             $("runBtn").disabled = false;
             $("runBtn").textContent = "⟳ Renew All Now";
+            $("stopBtn").style.display = "none";
           }
         }, 1800);
       }
     } else if (!status.progress && isRenewal) {
-      // Progress cleared — renewal done
       stopProgressPoller();
       clearProgressUI();
       hidePSA();
       $("runBtn").disabled = false;
       $("runBtn").textContent = "⟳ Renew All Now";
+      $("stopBtn").style.display = "none";
     }
   }, 800);
 }
