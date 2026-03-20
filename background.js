@@ -49,6 +49,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
   if (msg.action === "runNow") {
+    // Open persistent control window so user can see progress and stop
+    chrome.windows.create({
+      url: chrome.runtime.getURL("control.html"),
+      type: "popup",
+      width: 380,
+      height: 300
+    });
     runRenewal().then(() => sendResponse({ ok: true }));
     return true;
   }
@@ -292,13 +299,16 @@ async function runRenewal() {
       await sleep(randomBetween(2000, 4000));
       await chrome.tabs.remove(tab.id);
 
-      const ok = result?.[0]?.result?.ok;
-      if (ok) {
+      const saveResult = result?.[0]?.result;
+      if (saveResult?.ok) {
         successCount++;
         await appendLog(`✓ Renewed: ${urlToLabel(url)}`);
+      } else if (saveResult?.reason === "validation") {
+        failCount++;
+        await appendLog(`✗ ${urlToLabel(url)} — has empty required fields (${saveResult.fields}). Update this listing manually.`);
       } else {
         failCount++;
-        await appendLog(`✗ Save button not found: ${urlToLabel(url)}`);
+        await appendLog(`✗ ${urlToLabel(url)} — has empty required fields. Update this listing manually.`);
       }
     } catch (e) {
       failCount++;
