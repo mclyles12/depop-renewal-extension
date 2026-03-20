@@ -106,14 +106,21 @@
       border-radius: 5px;
       color: var(--muted);
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 13px;
       padding: 9px 12px;
-      cursor: pointer;
+      cursor: not-allowed;
       transition: all 0.15s;
       white-space: nowrap;
       flex-shrink: 0;
+      opacity: 0.35;
     }
-    .stop-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .stop-btn:not([disabled]) {
+      cursor: pointer;
+      opacity: 1;
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .stop-btn:not([disabled]):hover { background: var(--accent-dim); }
 
     /* Run button */
     .run-section { padding: 10px 14px; border-bottom: 1px solid var(--border); }
@@ -218,7 +225,7 @@
   <div class="run-section">
     <div style="display:flex;gap:6px">
       <button class="run-btn" id="runBtn">⟳ Renew All Now</button>
-      <button class="stop-btn" id="stopBtn" style="display:none">◼ Stop</button>
+      <button class="stop-btn" id="stopBtn" disabled>◼</button>
     </div>
   </div>
 

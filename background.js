@@ -329,7 +329,7 @@ async function runRenewal() {
   }
 }
 
-// --- Injected to click Save ---
+// --- Injected to click Save and detect validation errors ---
 function clickSaveButton() {
   const allButtons = Array.from(document.querySelectorAll("button"));
   const saveBtn = allButtons.find(b => {
@@ -339,14 +339,32 @@ function clickSaveButton() {
     const isSave = text === "save changes" || text === "save" || text === "update";
     return isBlock && isSave && !b.disabled;
   });
-  if (saveBtn) { saveBtn.click(); return { ok: true }; }
 
-  const fallback = allButtons.find(b => {
-    const text = b.innerText?.toLowerCase().trim();
-    return (text === "save changes" || text === "save" || text === "update listing") && !b.disabled;
+  if (!saveBtn) {
+    const fallback = allButtons.find(b => {
+      const text = b.innerText?.toLowerCase().trim();
+      return (text === "save changes" || text === "save" || text === "update listing") && !b.disabled;
+    });
+    if (!fallback) return { ok: false, reason: "no-button" };
+    fallback.click();
+  } else {
+    saveBtn.click();
+  }
+
+  // After clicking, check for validation errors after a short delay
+  return new Promise(resolve => {
+    setTimeout(() => {
+      const invalidFields = Array.from(document.querySelectorAll('[aria-invalid="true"]'));
+      if (invalidFields.length > 0) {
+        const fieldNames = invalidFields.map(el => {
+          return el.id?.replace('-input', '') || el.getAttribute('aria-label') || 'unknown field';
+        }).join(', ');
+        resolve({ ok: false, reason: "validation", fields: fieldNames });
+      } else {
+        resolve({ ok: true });
+      }
+    }, 1500);
   });
-  if (fallback) { fallback.click(); return { ok: true }; }
-  return { ok: false };
 }
 
 // --- Open tab as active (for scraping — needed for IntersectionObserver) ---

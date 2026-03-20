@@ -89,7 +89,7 @@ $("scrapeBtn").addEventListener("click", async () => {
 // --- Stop ---
 $("stopBtn").addEventListener("click", async () => {
   await sendMsg({ action: "stopNow" });
-  $("stopBtn").style.display = "none";
+  $("stopBtn").disabled = true;
   $("runBtn").disabled = false;
   $("runBtn").textContent = "⟳ Renew All Now";
   stopProgressPoller();
@@ -104,7 +104,7 @@ $("runBtn").addEventListener("click", async () => {
   showPSA("Tabs will open and close automatically. Do not interact with them.");
   $("runBtn").disabled = true;
   $("runBtn").textContent = "Running...";
-  $("stopBtn").style.display = "block";
+  $("stopBtn").disabled = false;
 
   sendMsg({ action: "runNow" });
   startProgressPoller(true);
@@ -130,7 +130,7 @@ function startProgressPoller(isRenewal = false) {
           if (isRenewal) {
             $("runBtn").disabled = false;
             $("runBtn").textContent = "⟳ Renew All Now";
-            $("stopBtn").style.display = "none";
+            $("stopBtn").disabled = true;
           }
         }, 1800);
       }
@@ -140,7 +140,7 @@ function startProgressPoller(isRenewal = false) {
       hidePSA();
       $("runBtn").disabled = false;
       $("runBtn").textContent = "⟳ Renew All Now";
-      $("stopBtn").style.display = "none";
+      $("stopBtn").disabled = true;
     }
   }, 800);
 }
