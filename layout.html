@@ -2,136 +2,158 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Listing Layout Manager — Depop Renewer</title>
+  <title>Layout Manager — Depop Renewer</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap');
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0e0e0f;
-      --surface: #1a1a1c;
-      --border: #2a2a2d;
-      --accent: #ff3c5f;
-      --accent-dim: rgba(255,60,95,0.15);
-      --green: #2ecc71;
-      --green-dim: rgba(46,204,113,0.12);
+      --bg: #f5f5f5;
+      --white: #ffffff;
+      --border: #e8e8e8;
+      --border-dark: #cfcfcf;
+      --accent: #ff2d55;
+      --green: #22c55e;
       --amber: #f5a623;
-      --text: #f0eff0;
-      --muted: #666;
-      --mono: 'DM Mono', monospace;
+      --text: #262626;
+      --text-secondary: #767676;
+      --text-light: #b0b0b0;
+      --star: #ffc107;
       --sans: 'DM Sans', sans-serif;
+      --mono: 'DM Mono', monospace;
     }
 
     body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; display: flex; flex-direction: column; }
 
-    /* Header */
-    .header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-    .header-left { display: flex; flex-direction: column; gap: 2px; }
-    .title { font-family: var(--mono); font-size: 13px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
-    .subtitle { font-size: 11px; color: var(--muted); }
-    .header-actions { display: flex; gap: 8px; align-items: center; }
-    .btn { border-radius: 5px; font-family: var(--mono); font-size: 11px; font-weight: 500; padding: 8px 14px; cursor: pointer; transition: all 0.15s; letter-spacing: 0.04em; }
-    .btn-primary { background: var(--accent); border: none; color: #fff; }
-    .btn-primary:hover { opacity: 0.85; }
+    /* Tool bar */
+    .tool-bar { background: var(--white); border-bottom: 2px solid var(--accent); padding: 9px 20px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; position: sticky; top: 0; z-index: 200; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+    .tool-brand { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.08em; }
+    .tool-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+    .tool-actions { display: flex; gap: 8px; align-items: center; }
+
+    .btn { border-radius: 20px; font-family: var(--sans); font-size: 13px; font-weight: 600; padding: 8px 18px; cursor: pointer; transition: all 0.15s; border: none; white-space: nowrap; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #e0002a; }
     .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-outline { background: none; border: 1px solid var(--border); color: var(--muted); }
-    .btn-outline:hover { border-color: var(--text); color: var(--text); }
+    .btn-ghost { background: none; border: 1.5px solid var(--border-dark); color: var(--text); }
+    .btn-ghost:hover { border-color: var(--text); }
 
-    /* PSA */
-    .psa { display: none; padding: 8px 20px; background: rgba(245,166,35,0.1); border-bottom: 1px solid var(--amber); font-size: 11px; font-family: var(--mono); color: var(--amber); }
+    /* PSA + Progress */
+    .psa { display: none; padding: 7px 20px; background: rgba(245,166,35,0.12); border-bottom: 1px solid var(--amber); font-size: 11px; font-family: var(--mono); color: #8a5e00; text-align: center; }
     .psa.visible { display: block; }
-
-    /* Progress */
-    .progress-section { display: none; padding: 10px 20px; background: var(--surface); border-bottom: 1px solid var(--border); }
-    .progress-section.visible { display: block; }
-    .progress-top { display: flex; justify-content: space-between; font-size: 11px; font-family: var(--mono); color: var(--text); margin-bottom: 6px; }
-    .progress-top span { color: var(--muted); }
-    .progress-track { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .progress-wrap { display: none; padding: 8px 20px; background: var(--white); border-bottom: 1px solid var(--border); }
+    .progress-wrap.visible { display: block; }
+    .progress-top { display: flex; justify-content: space-between; font-size: 11px; font-family: var(--mono); color: var(--text); margin-bottom: 5px; }
+    .progress-top span { color: var(--text-secondary); }
+    .progress-track { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
     .progress-bar { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; }
     .progress-bar.green { background: var(--green); }
 
-    /* Status bar */
-    .statusbar { padding: 8px 20px; background: var(--surface); border-bottom: 1px solid var(--border); font-size: 11px; font-family: var(--mono); color: var(--muted); display: flex; align-items: center; gap: 16px; }
-    .status-pill { padding: 2px 8px; border-radius: 10px; font-size: 10px; border: 1px solid var(--border); color: var(--muted); }
-    .status-pill.green { border-color: var(--green); color: var(--green); background: var(--green-dim); }
-
     /* Main */
-    .main { flex: 1; padding: 20px; overflow-y: auto; }
+    .main { flex: 1; overflow-y: auto; padding-bottom: 36px; }
+    .profile-page { background: var(--white); max-width: 960px; margin: 0 auto; width: 100%; }
 
-    /* Empty / loading states */
-    .empty { display: none; flex-direction: column; align-items: center; justify-content: center; height: 300px; gap: 10px; color: var(--muted); }
-    .empty.visible { display: flex; }
-    .empty-icon { font-size: 40px; opacity: 0.3; }
-    .empty-title { font-family: var(--mono); font-size: 13px; }
-    .empty-sub { font-size: 11px; text-align: center; line-height: 1.6; max-width: 280px; }
+    /* Profile header */
+    .profile-header { padding: 24px 24px 0; }
+    .profile-top { display: flex; align-items: flex-start; gap: 18px; margin-bottom: 16px; }
+
+    .avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; background: var(--border); display: block; flex-shrink: 0; }
+    .avatar-placeholder { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #f0f0f0, #ddd); display: flex; align-items: center; justify-content: center; font-size: 30px; flex-shrink: 0; }
+
+    .shop-info { flex: 1; min-width: 0; }
+    .shop-username { font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.2; margin-bottom: 5px; }
+
+    .rating-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+    .stars { display: flex; gap: 1px; }
+    .star { font-size: 13px; color: var(--star); }
+    .star.empty { color: #ddd; }
+    .review-count { font-size: 12px; color: var(--text-secondary); }
+
+    .signals { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+    .signal-sep { color: var(--border-dark); }
+
+    .follows-row { display: flex; gap: 18px; margin: 12px 0; }
+    .follow-stat { font-size: 13px; color: var(--text); }
+    .follow-stat strong { font-weight: 700; }
+
+    .shop-bio { margin-bottom: 18px; }
+    .bio-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .bio-text { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+
+    /* Skeleton */
+    .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; }
+    .skeleton-avatar { width: 80px; height: 80px; border-radius: 50%; flex-shrink: 0; }
+    .skeleton-lines { flex: 1; display: flex; flex-direction: column; gap: 9px; padding-top: 6px; }
+    .skeleton-line { height: 13px; border-radius: 4px; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    /* Tabs */
+    .profile-tabs { display: flex; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .profile-tab { font-size: 13px; font-weight: 600; color: var(--text-secondary); padding: 11px 20px 10px; cursor: default; border-bottom: 2.5px solid transparent; margin-bottom: -1px; user-select: none; }
+    .profile-tab.active { color: var(--text); border-bottom-color: var(--text); }
+
+    /* Listing bar */
+    .listing-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; border-bottom: 1px solid var(--border); }
+    .listing-bar-left { display: flex; align-items: center; gap: 8px; }
+    .listing-bar-title { font-size: 13px; font-weight: 700; color: var(--text); }
+    .listing-bar-count { font-size: 13px; color: var(--text-secondary); }
+    .listing-bar-hint { font-size: 11px; font-family: var(--mono); color: var(--text-light); }
 
     /* Grid */
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
-    .grid-item { border: 2px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); cursor: grab; transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s; position: relative; user-select: none; }
-    .grid-item:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
-    .grid-item.dragging { opacity: 0.4; cursor: grabbing; transform: scale(0.97); }
-    .grid-item.drag-over { border-color: var(--green); box-shadow: 0 0 0 2px var(--green); }
-    .item-img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: var(--border); }
-    .item-img-placeholder { width: 100%; aspect-ratio: 1; background: var(--border); display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--muted); }
-    .item-info { padding: 6px 8px; }
-    .item-title { font-size: 10px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
-    .item-price { font-size: 10px; font-family: var(--mono); color: var(--green); }
-    .item-position {
-      position: absolute;
-      top: 6px;
-      left: 6px;
-      background: rgba(0,0,0,0.75);
-      color: #fff;
-      font-family: var(--mono);
-      font-size: 13px;
-      font-weight: 500;
-      width: 42px;
-      padding: 3px 5px;
-      border-radius: 4px;
-      border: 1px solid transparent;
-      text-align: center;
-      line-height: 1.3;
-      cursor: text;
-      -moz-appearance: textfield;
-    }
-    .item-position::-webkit-outer-spin-button,
-    .item-position::-webkit-inner-spin-button { -webkit-appearance: none; }
-    .item-position:focus {
-      outline: none;
-      border-color: var(--accent);
-      background: rgba(0,0,0,0.92);
-      color: var(--accent);
-    }
+    .grid-wrap { padding: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 
-    /* Footer */
-    .footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: var(--surface); }
-    .footer-note { font-size: 10px; font-family: var(--mono); color: var(--muted); }
+    .grid-item { position: relative; cursor: grab; user-select: none; border-radius: 8px; overflow: visible; background: transparent; transition: transform 0.15s, box-shadow 0.15s; }
+    .grid-item:hover .item-img-wrap { box-shadow: 0 6px 20px rgba(0,0,0,0.14); }
+    .grid-item.dragging { opacity: 0.3; cursor: grabbing; }
+    .grid-item.drag-over .item-img-wrap { outline: 2.5px solid var(--accent); outline-offset: -2px; }
+
+    .item-img-wrap { position: relative; width: 100%; aspect-ratio: 3/4; background: #efefef; overflow: hidden; border-radius: 8px; transition: box-shadow 0.15s; }
+    .item-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .item-img-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 32px; color: var(--text-light); background: #f5f5f5; }
+
+    /* Position badge */
+    .item-position { position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,0.7); color: #fff; font-family: var(--mono); font-size: 12px; font-weight: 500; width: 36px; padding: 3px 4px; border-radius: 4px; border: 1px solid transparent; text-align: center; line-height: 1.3; cursor: text; -moz-appearance: textfield; z-index: 2; }
+    .item-position::-webkit-outer-spin-button, .item-position::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .item-position:focus { outline: none; border-color: var(--accent); background: rgba(0,0,0,0.88); color: var(--accent); }
+
+    .item-info { padding: 6px 2px 4px; }
+    .item-price { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.3; }
+    .item-title { font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+
+    /* Empty */
+    .empty { display: none; flex-direction: column; align-items: center; justify-content: center; padding: 80px 20px; gap: 10px; color: var(--text-secondary); }
+    .empty.visible { display: flex; }
+    .empty-icon { font-size: 44px; opacity: 0.25; }
+    .empty-title { font-size: 15px; font-weight: 600; color: var(--text); }
+    .empty-sub { font-size: 13px; text-align: center; color: var(--text-secondary); max-width: 280px; line-height: 1.5; }
 
     /* Log strip */
-    .log-strip { padding: 6px 20px; border-top: 1px solid var(--border); font-size: 10px; font-family: var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .log-strip { position: fixed; bottom: 0; left: 0; right: 0; padding: 6px 20px; background: var(--white); border-top: 1px solid var(--border); font-size: 11px; font-family: var(--mono); color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; z-index: 100; max-width: 960px; margin: 0 auto; }
     .log-strip.success { color: var(--green); }
     .log-strip.error { color: var(--accent); }
   </style>
 </head>
 <body>
 
-  <div class="header">
-    <div class="header-left">
-      <span class="title">⊞ Layout Manager</span>
-      <span class="subtitle">Drag listings to set your shop order — renews in that order</span>
+  <div class="tool-bar">
+    <div class="tool-brand">
+      <div class="tool-dot"></div>
+      Depop Renewer · Layout Manager
     </div>
-    <div class="header-actions">
-      <button class="btn btn-outline" id="resetBtn">↺ Reset Order</button>
+    <div class="tool-actions">
+      <button class="btn btn-ghost" id="resetBtn">↺ Reset</button>
+      <button class="btn btn-ghost" id="saveOrderBtn">💾 Save Order</button>
       <button class="btn btn-primary" id="renewBtn">⟳ Renew in This Order</button>
     </div>
   </div>
 
   <div class="psa" id="psaBanner">
-    ⚠ Tabs will open &amp; close automatically. Do not click or close them until renewal finishes.
+    ⚠ Tabs will open &amp; close automatically — do not interact with them until renewal finishes.
   </div>
 
-  <div class="progress-section" id="progressSection">
+  <div class="progress-wrap" id="progressWrap">
     <div class="progress-top">
       <span id="progressMsg">Working...</span>
       <span id="progressPct">0%</span>
@@ -141,23 +163,46 @@
     </div>
   </div>
 
-  <div class="statusbar">
-    <span id="statusText">Loading your listings...</span>
-    <span class="status-pill" id="statusPill">—</span>
-  </div>
+  <div class="main">
+    <div class="profile-page">
 
-  <div class="main" id="main">
-    <div class="empty" id="emptyState">
-      <div class="empty-icon">🛍</div>
-      <div class="empty-title">No listings found</div>
-      <div class="empty-sub">Go back to the popup and use ⟲ Scrape to import your listings first.</div>
+      <div class="profile-header">
+        <div class="profile-top" id="profileTop">
+          <!-- skeleton default, replaced by JS -->
+          <div class="skeleton skeleton-avatar"></div>
+          <div class="skeleton-lines">
+            <div class="skeleton skeleton-line" style="width:130px"></div>
+            <div class="skeleton skeleton-line" style="width:100px"></div>
+            <div class="skeleton skeleton-line" style="width:180px"></div>
+          </div>
+        </div>
+        <div id="profileMeta"></div>
+      </div>
+
+      <div class="profile-tabs">
+        <div class="profile-tab active">Selling</div>
+        <div class="profile-tab">Likes</div>
+        <div class="profile-tab">Saves</div>
+      </div>
+
+      <div class="listing-bar">
+        <div class="listing-bar-left">
+          <span class="listing-bar-title">Active</span>
+          <span class="listing-bar-count" id="listingBarCount"></span>
+        </div>
+        <span class="listing-bar-hint">drag to reorder · #1 appears first in search</span>
+      </div>
+
+      <div class="grid-wrap">
+        <div class="empty" id="emptyState">
+          <div class="empty-icon">🛍</div>
+          <div class="empty-title">No listings found</div>
+          <div class="empty-sub">Go back to the popup and use ⟲ Scrape to import your listings first.</div>
+        </div>
+        <div class="grid" id="grid"></div>
+      </div>
+
     </div>
-    <div class="grid" id="grid"></div>
-  </div>
-
-  <div class="footer">
-    <span class="footer-note" id="footerNote">Drag to reorder · #1 will appear first in search</span>
-    <button class="btn btn-outline" id="saveOrderBtn">💾 Save Order</button>
   </div>
 
   <div class="log-strip" id="logStrip">Ready</div>

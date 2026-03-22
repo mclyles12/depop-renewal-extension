@@ -258,7 +258,7 @@ function shortTime(t) {
 }
 
 // --- Error ---
-function showError(msg) { const b = $("errorBanner"); b.textContent = msg; b.classList.add("visible"); }
+function showError(msg) { const b = $("errorBanner"); b.innerText = msg; b.classList.add("visible"); }
 function hideError() { $("errorBanner").classList.remove("visible"); }
 
 // --- Footer buttons ---

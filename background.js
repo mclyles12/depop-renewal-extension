@@ -1,4 +1,4 @@
-// background.js — Depop Listing Renewer v1.4
+// background.js — Depop Listing Renewer v1.5
 
 const ALARM_NAME = "depop-renewal";
 
@@ -26,6 +26,8 @@ chrome.runtime.onInstalled.addListener(async () => {
       enabled: false,
       listingUrls: [],
       listingMeta: {},
+      profileInfo: null,
+      profileProfiles: {},
       interval: DEFAULT_INTERVAL,
       lastRun: null,
       nextRun: null,
@@ -49,7 +51,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
   if (msg.action === "runNow") {
-    // Open persistent control window so user can see progress and stop
     chrome.windows.create({
       url: chrome.runtime.getURL("control.html"),
       type: "popup",
@@ -80,7 +81,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
   if (msg.action === "getStatus") {
-    chrome.storage.local.get(["enabled", "listingUrls", "listingMeta", "lastRun", "nextRun", "log", "interval", "progress"]).then(sendResponse);
+    chrome.storage.local.get(["enabled", "listingUrls", "listingMeta", "profileInfo", "profileProfiles", "lastRun", "nextRun", "log", "interval", "progress"]).then(sendResponse);
     return true;
   }
   if (msg.action === "openLayoutManager") {
@@ -88,7 +89,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       url: chrome.runtime.getURL("layout.html"),
       type: "popup",
       width: 900,
-      height: 650
+      height: 700
     });
     sendResponse({ ok: true });
     return true;
@@ -131,34 +132,41 @@ async function scheduleAlarm() {
   await chrome.storage.local.set({ nextRun });
 }
 
-// --- Scrape profile (images grabbed from profile page thumbnails) ---
+// --- Scrape profile (listings + profile info) ---
 async function scrapeProfile(profileUrl) {
   try {
     await setProgress({ stage: "scraping", message: "Finding your Depop tab...", percent: 10 });
 
-    // Find any open Depop tab — user should already be on their profile page
     const allTabs = await chrome.tabs.query({});
-    const tab = allTabs.find(t => t.url && t.url.includes('depop.com') && !t.url.includes('/products/'));
-
+    const EXCLUDED = ['/products/edit', '/products/create', '/search', '/checkout', '/login', '/signup', '/settings', '/bag', '/sell'];
+    let tab = allTabs.find(t =>
+      t.url &&
+      t.url.includes('depop.com') &&
+      !EXCLUDED.some(x => t.url.includes(x)) &&
+      /depop\.com\/[a-z0-9_]+\/?/i.test(t.url)
+    );
+    if (!tab) {
+      tab = allTabs.find(t =>
+        t.url && t.url.includes('depop.com') &&
+        !t.url.includes('/products/edit') && !t.url.includes('/products/create')
+      );
+    }
     if (!tab) {
       await clearProgress();
-      return { ok: false, error: "No Depop profile tab found. Open your profile page in Chrome, scroll to the bottom, then try again." };
+      return { ok: false, error: "No Depop profile tab found. Open your profile page (depop.com/yourusername/), scroll to the bottom to load all listings, then try again." };
     }
 
-    await setProgress({ stage: "scraping", message: "Reading listings from page...", percent: 40 });
+    await setProgress({ stage: "scraping", message: "Reading listings and profile info...", percent: 40 });
 
-    // Inject scraper inline into the existing tab
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: () => {
         window.__depopScraperResult = null;
 
         function getListings() {
-          // Find all sold listing URLs so we can exclude them
           const soldUrls = new Set();
           document.querySelectorAll('p, h2, h3').forEach(el => {
             if (el.innerText?.trim() === 'Sold items') {
-              // Grab all product links in the sold section (parent section or next sibling container)
               const section = el.closest('section') || el.parentElement;
               section?.querySelectorAll('a[href*="/products/"]').forEach(a => {
                 soldUrls.add(a.href);
@@ -172,11 +180,11 @@ async function scrapeProfile(profileUrl) {
           links.forEach(a => {
             const href = a.href;
             if (
-              /\/products\/[^/]+\/$/.test(href) &&
+              /\/products\/[^/]+\/?$/.test(href) &&
               !href.includes('/products/create') &&
               !href.includes('/products/edit') &&
               !seen.has(href) &&
-              !soldUrls.has(href)  // exclude sold listings
+              !soldUrls.has(href)
             ) {
               seen.add(href);
               const img = a.querySelector('img');
@@ -191,8 +199,62 @@ async function scrapeProfile(profileUrl) {
         }
 
         function toEditUrl(productUrl) {
-          const match = productUrl.match(/\/products\/([^/]+)\//);
+          const match = productUrl.match(/\/products\/([^/?#]+)/);
           return match ? `https://www.depop.com/products/edit/${match[1]}/` : null;
+        }
+
+        // --- Scrape profile info ---
+        function scrapeProfileInfo() {
+          // Avatar
+          const avatarImg = document.querySelector('[data-testid="avatar"] img, [class*="avatarContainer"] img, [class*="userImage"]');
+          const avatarUrl = avatarImg?.src || null;
+
+          // Username (h1)
+          const usernameEl = document.querySelector('h1[class*="username"], h1');
+          const username = usernameEl?.innerText?.trim() || "";
+
+          // Shop name / display name
+          const shopNameEl = document.querySelector('[class*="sellerName"], [class*="shopName"]');
+          const shopName = shopNameEl?.innerText?.trim() || "";
+
+          // Bio
+          const bioEl = document.querySelector('[class*="shopBio"] p:last-child, [class*="bio"] p');
+          const bio = bioEl?.innerText?.trim() || "";
+
+          // Stars / rating
+          const ratingEl = document.querySelector('[aria-label*="shop rating"]');
+          const ratingLabel = ratingEl?.getAttribute('aria-label') || "";
+          const ratingMatch = ratingLabel.match(/(\d+(\.\d+)?)\s*star/);
+          const rating = ratingMatch ? parseFloat(ratingMatch[1]) : null;
+
+          // Review count
+          const reviewCountEl = document.querySelector('[class*="feedbackButton"] p');
+          const reviewCountText = reviewCountEl?.innerText?.trim() || "";
+          const reviewCount = reviewCountText.replace(/[()]/g, "").trim();
+
+          // Sold count + activity
+          const signalEls = document.querySelectorAll('[class*="signal"] p');
+          let sold = "";
+          let activity = "";
+          signalEls.forEach(el => {
+            const t = el.innerText?.trim();
+            if (t?.includes("sold")) sold = t;
+            else if (t?.includes("Active") || t?.includes("ago")) activity = t;
+          });
+
+          // Followers / Following
+          const followBtns = document.querySelectorAll('[class*="followCount"]');
+          let followers = "";
+          let following = "";
+          followBtns.forEach(btn => {
+            const label = btn.getAttribute('aria-label') || "";
+            const bold = btn.querySelector('[class*="bold"], b, strong');
+            const val = bold?.innerText?.trim() || "";
+            if (label.includes("followers")) followers = val;
+            else if (label.includes("following")) following = val;
+          });
+
+          return { avatarUrl, username, shopName, bio, rating, reviewCount, sold, activity, followers, following };
         }
 
         const listings = getListings();
@@ -207,12 +269,28 @@ async function scrapeProfile(profileUrl) {
           meta[editUrl] = { imageUrl, title, price, slug, productUrl, editUrl };
         });
 
-        window.__depopScraperResult = { editUrls, meta, count: editUrls.length };
+        const profileInfo = scrapeProfileInfo();
+
+        // Collect diagnostics for debugging if listings come back empty
+        const allLinks = document.querySelectorAll('a[href*="/products/"]');
+        const sampleHrefs = Array.from(allLinks).slice(0, 5).map(a => a.href);
+        const testedRegex = /\/products\/[^/?#]+\/?$/.source;
+        const matchCount = Array.from(allLinks).filter(a => /\/products\/[^/?#]+\/?$/.test(a.href) && !a.href.includes('/edit') && !a.href.includes('/create')).length;
+        const pageUrl = window.location.href;
+        const diagnostics = [
+          `URL: ${pageUrl}`,
+          `Total /products/ links found: ${allLinks.length}`,
+          `Links passing regex filter: ${matchCount}`,
+          `Regex used: ${testedRegex}`,
+          `Sample hrefs: ${JSON.stringify(sampleHrefs, null, 2)}`
+        ].join("\n");
+
+        window.__depopScraperResult = { editUrls, meta, count: editUrls.length, profileInfo, diagnostics };
       },
       world: "MAIN"
     });
 
-    // Poll for result (max 15 seconds — should be instant)
+    // Poll for result
     let data = null;
     for (let i = 0; i < 15; i++) {
       await sleep(1000);
@@ -227,26 +305,47 @@ async function scrapeProfile(profileUrl) {
 
     if (!data || !data.editUrls?.length) {
       await clearProgress();
-      return { ok: false, error: "No listings found on the page. Make sure you've scrolled to the bottom of your profile to load all listings." };
+      // Return diagnostic info so the user can report exactly what went wrong
+      const diagInfo = data?.diagnostics || "No diagnostic info captured.";
+      return {
+        ok: false,
+        error: `No listings found. Paste this when reporting:\n\n${diagInfo}`
+      };
     }
 
     await setProgress({ stage: "saving", message: `Found ${data.editUrls.length} listings. Saving...`, percent: 85 });
     await sleep(400);
 
-    const { listingUrls, listingMeta } = await chrome.storage.local.get(["listingUrls", "listingMeta"]);
+    const { listingUrls, listingMeta, profileProfiles } = await chrome.storage.local.get(["listingUrls", "listingMeta", "profileProfiles"]);
     const existing = listingUrls || [];
     const existingMeta = listingMeta || {};
     const merged = Array.from(new Set([...existing, ...data.editUrls]));
     const mergedMeta = { ...existingMeta, ...data.meta };
 
-    await chrome.storage.local.set({ listingUrls: merged, listingMeta: mergedMeta });
-    await appendLog(`Scraped ${data.editUrls.length} listing(s). Total: ${merged.length}`);
+    // Always save profile info — merge into per-username map so multi-account
+    // users don't lose data, and re-scraping always refreshes the relevant entry.
+    const profiles = profileProfiles || {};
+    if (data.profileInfo) {
+      const key = data.profileInfo.username || tab.url?.match(/depop\.com\/([^/]+)\//)?.[1] || "default";
+      profiles[key] = { ...data.profileInfo, scrapedAt: new Date().toISOString() };
+    }
+
+    const saveData = {
+      listingUrls: merged,
+      listingMeta: mergedMeta,
+      profileProfiles: profiles,
+      // Keep profileInfo as the most-recently-scraped one for backward compat
+      profileInfo: data.profileInfo || null
+    };
+
+    await chrome.storage.local.set(saveData);
+    await appendLog(`Scraped ${data.editUrls.length} listing(s). Total: ${merged.length}${data.profileInfo?.username ? ` · Updated profile: ${data.profileInfo.username}` : ""}.`);
 
     await setProgress({ stage: "done", message: `Done! ${data.editUrls.length} listings imported.`, percent: 100 });
     await sleep(1500);
     await clearProgress();
 
-    return { ok: true, found: data.editUrls.length, total: merged.length };
+    return { ok: true, found: data.editUrls.length, total: merged.length, profileInfo: data.profileInfo };
   } catch (e) {
     await clearProgress();
     return { ok: false, error: e.message };
@@ -361,7 +460,6 @@ function clickSaveButton() {
     saveBtn.click();
   }
 
-  // After clicking, check for validation errors after a short delay
   return new Promise(resolve => {
     setTimeout(() => {
       const invalidFields = Array.from(document.querySelectorAll('[aria-invalid="true"]'));
@@ -374,23 +472,6 @@ function clickSaveButton() {
         resolve({ ok: true });
       }
     }, 1500);
-  });
-}
-
-// --- Open tab as active (for scraping — needed for IntersectionObserver) ---
-function openTabActive(url) {
-  return new Promise((resolve, reject) => {
-    chrome.tabs.create({ url, active: true }, (tab) => {
-      if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
-      const listener = (tabId, changeInfo) => {
-        if (tabId === tab.id && changeInfo.status === "complete") {
-          chrome.tabs.onUpdated.removeListener(listener);
-          resolve(tab);
-        }
-      };
-      chrome.tabs.onUpdated.addListener(listener);
-      setTimeout(() => { chrome.tabs.onUpdated.removeListener(listener); resolve(tab); }, 15000);
-    });
   });
 }
 
