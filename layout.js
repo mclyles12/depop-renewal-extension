@@ -59,7 +59,7 @@ function renderProfile() {
 
   // Avatar
   const avatarHtml = p.avatarUrl
-    ? `<img class="avatar" src="${p.avatarUrl}" alt="${p.username}" onerror="this.replaceWith(makePlaceholderAvatar())">`
+    ? `<img class="avatar" src="${upgradeImageUrl(p.avatarUrl)}" alt="${p.username}" onerror="this.replaceWith(makePlaceholderAvatar())">`
     : `<div class="avatar-placeholder">🛍</div>`;
 
   // Stars
@@ -162,7 +162,7 @@ function renderGrid() {
     if (info.imageUrl) {
       const img = document.createElement("img");
       img.className = "item-img";
-      img.src = info.imageUrl;
+      img.src = upgradeImageUrl(info.imageUrl);
       img.alt = info.title || "";
       img.loading = "lazy";
       img.onerror = () => img.replaceWith(makePlaceholderImg());
@@ -203,6 +203,13 @@ function renderGrid() {
 
     grid.appendChild(item);
   });
+}
+
+function upgradeImageUrl(url) {
+  if (!url) return url;
+  // Depop CDN: swap low-res placeholder (P10) or any Pn suffix for P5 (320w)
+  // which is sharp enough for the grid cards without being huge
+  return url.replace(/\/P\d+\.jpg$/, '/P5.jpg');
 }
 
 function makePlaceholderImg() {
