@@ -319,7 +319,12 @@ async function scrapeProfile(profileUrl) {
     const { listingUrls, listingMeta, profileProfiles } = await chrome.storage.local.get(["listingUrls", "listingMeta", "profileProfiles"]);
     const existing = listingUrls || [];
     const existingMeta = listingMeta || {};
-    const merged = Array.from(new Set([...existing, ...data.editUrls]));
+    const existingSet = new Set(existing);
+    // New listings = ones not already in the saved order
+    const brandNew = data.editUrls.filter(u => !existingSet.has(u));
+    // Prepend new listings so they appear at position #1+ and get renewed last
+    // (renewal runs in reverse, so position #1 = renewed last = top of search)
+    const merged = Array.from(new Set([...brandNew, ...existing]));
     const mergedMeta = { ...existingMeta, ...data.meta };
 
     // Always save profile info — merge into per-username map so multi-account
@@ -339,7 +344,7 @@ async function scrapeProfile(profileUrl) {
     };
 
     await chrome.storage.local.set(saveData);
-    await appendLog(`Scraped ${data.editUrls.length} listing(s). Total: ${merged.length}${data.profileInfo?.username ? ` · Updated profile: ${data.profileInfo.username}` : ""}.`);
+    await appendLog(`Scraped ${data.editUrls.length} listing(s) — ${brandNew.length} new, added to top. Total: ${merged.length}${data.profileInfo?.username ? ` · Updated profile: ${data.profileInfo.username}` : ""}.`);
 
     await setProgress({ stage: "done", message: `Done! ${data.editUrls.length} listings imported.`, percent: 100 });
     await sleep(1500);
