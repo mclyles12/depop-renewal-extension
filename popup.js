@@ -5,6 +5,7 @@ const $ = id => document.getElementById(id);
 let listings = [];
 let enabled = false;
 let currentInterval = "48h";
+let speedMultiplier = 1.0;
 let progressPoller = null;
 
 // --- Init ---
@@ -13,12 +14,14 @@ async function init() {
   enabled = status.enabled || false;
   listings = status.listingUrls || [];
   currentInterval = status.interval || "48h";
+  speedMultiplier = status.speedMultiplier || 1.0;
 
   renderToggle();
   renderListings();
   renderStatus(status);
   renderLog(status.log || []);
   renderIntervalPills();
+  renderSpeedSlider();
 
   // Resume progress display if something was running
   if (status.progress) renderProgress(status.progress);
@@ -45,6 +48,13 @@ function renderIntervalPills() {
   });
 }
 
+function renderSpeedSlider() {
+  const slider = $("speedSlider");
+  const value = $("speedValue");
+  slider.value = speedMultiplier;
+  value.textContent = speedMultiplier + "x";
+}
+
 document.querySelectorAll(".pill").forEach(pill => {
   pill.addEventListener("click", async () => {
     currentInterval = pill.dataset.interval;
@@ -53,6 +63,13 @@ document.querySelectorAll(".pill").forEach(pill => {
     const status = await sendMsg({ action: "getStatus" });
     renderStatus(status);
   });
+});
+
+// --- Speed slider ---
+$("speedSlider").addEventListener("input", async (e) => {
+  speedMultiplier = parseFloat(e.target.value);
+  renderSpeedSlider();
+  await sendMsg({ action: "setSpeedMultiplier", multiplier: speedMultiplier });
 });
 
 // --- Layout manager ---

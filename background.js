@@ -11,8 +11,8 @@ const INTERVALS = {
 };
 
 const DEFAULT_INTERVAL = "48h";
-const HUMAN_DELAY_MIN = 8000;
-const HUMAN_DELAY_MAX = 25000;
+const HUMAN_DELAY_MIN = 5000;
+const HUMAN_DELAY_MAX = 15000;
 const JITTER_MIN = -10;
 const JITTER_MAX = 10;
 
@@ -32,7 +32,8 @@ chrome.runtime.onInstalled.addListener(async () => {
       lastRun: null,
       nextRun: null,
       log: [],
-      progress: null
+      progress: null,
+      speedMultiplier: 1.0
     });
   }
 });
@@ -76,12 +77,16 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     chrome.storage.local.set({ listingMeta: msg.meta }).then(() => sendResponse({ ok: true }));
     return true;
   }
+  if (msg.action === "setSpeedMultiplier") {
+    chrome.storage.local.set({ speedMultiplier: msg.multiplier }).then(() => sendResponse({ ok: true }));
+    return true;
+  }
   if (msg.action === "scrapeProfile") {
     scrapeProfile(msg.profileUrl).then(sendResponse);
     return true;
   }
   if (msg.action === "getStatus") {
-    chrome.storage.local.get(["enabled", "listingUrls", "listingMeta", "profileInfo", "profileProfiles", "lastRun", "nextRun", "log", "interval", "progress"]).then(sendResponse);
+    chrome.storage.local.get(["enabled", "listingUrls", "listingMeta", "profileInfo", "profileProfiles", "lastRun", "nextRun", "log", "interval", "progress", "speedMultiplier"]).then(sendResponse);
     return true;
   }
   if (msg.action === "openLayoutManager") {
@@ -360,7 +365,8 @@ async function scrapeProfile(profileUrl) {
 
 // --- Core renewal (reverse order) ---
 async function runRenewal() {
-  const { listingUrls } = await chrome.storage.local.get("listingUrls");
+  const { listingUrls, speedMultiplier } = await chrome.storage.local.get(["listingUrls", "speedMultiplier"]);
+  const multiplier = speedMultiplier || 1.0;
   if (!listingUrls || listingUrls.length === 0) {
     await appendLog("No listings configured — skipped.");
     return;
@@ -393,14 +399,14 @@ async function runRenewal() {
 
     try {
       const tab = await openTabHidden(url);
-      await sleep(4000);
+      await sleep(Math.round(2000 * multiplier));
 
       const result = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: clickSaveButton
       });
 
-      await sleep(randomBetween(6000, 9000));
+      await sleep(randomBetween(Math.round(3000 * multiplier), Math.round(6000 * multiplier)));
       await chrome.tabs.remove(tab.id);
 
       const saveResult = result?.[0]?.result;
@@ -419,7 +425,7 @@ async function runRenewal() {
       await appendLog(`✗ Error on ${urlToLabel(url)}: ${e.message}`);
     }
 
-    await sleep(randomBetween(HUMAN_DELAY_MIN, HUMAN_DELAY_MAX));
+    await sleep(randomBetween(Math.round(HUMAN_DELAY_MIN * multiplier), Math.round(HUMAN_DELAY_MAX * multiplier)));
   }
 
   const now = new Date().toISOString();

@@ -79,6 +79,12 @@
     .pill:hover { border-color: var(--text); color: var(--text); }
     .pill.active { border-color: var(--green); color: var(--green); background: var(--green-dim); }
 
+    /* Speed slider */
+    .speed-section { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    .speed-section input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; background: var(--border); border-radius: 2px; outline: none; }
+    .speed-section input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+    .speed-section input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; border: none; }
+
     /* Listings */
     .listings-section { padding: 10px 14px; border-bottom: 1px solid var(--border); }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
@@ -205,6 +211,14 @@
       <div class="pill" data-interval="12h">12h</div>
       <div class="pill" data-interval="24h">24h</div>
       <div class="pill active" data-interval="48h">48h</div>
+    </div>
+  </div>
+
+  <div class="speed-section">
+    <div class="section-label">Renewal Speed</div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <input type="range" min="0.5" max="2.0" step="0.1" value="1.0" id="speedSlider" style="flex: 1;">
+      <span id="speedValue" style="font-size: 11px; font-family: var(--mono); color: var(--text); min-width: 35px;">1.0x</span>
     </div>
   </div>
 
