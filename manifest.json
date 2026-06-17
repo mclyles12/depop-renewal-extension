@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Depop Listing Renewer",
-  "version": "1.4.0",
-  "description": "Automatically renews your Depop listings on a schedule to keep them fresh in search.",
+  "version": "1.5.0",
+  "description": "Renew Depop listings and export listing data for your own site.",
   "permissions": [
     "alarms",
     "storage",

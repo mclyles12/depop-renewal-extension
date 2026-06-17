@@ -85,6 +85,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     scrapeProfile(msg.profileUrl).then(sendResponse);
     return true;
   }
+  if (msg.action === "exportListings") {
+    exportListings().then(sendResponse);
+    return true;
+  }
   if (msg.action === "getStatus") {
     chrome.storage.local.get(["enabled", "listingUrls", "listingMeta", "profileInfo", "profileProfiles", "lastRun", "nextRun", "log", "interval", "progress", "speedMultiplier"]).then(sendResponse);
     return true;
@@ -362,6 +366,268 @@ async function scrapeProfile(profileUrl) {
   }
 }
 
+
+// --- Export listing data from edit pages ---
+async function exportListings() {
+  const { listingUrls, listingMeta, profileInfo, profileProfiles } = await chrome.storage.local.get([
+    "listingUrls",
+    "listingMeta",
+    "profileInfo",
+    "profileProfiles"
+  ]);
+
+  const urls = listingUrls || [];
+  const meta = listingMeta || {};
+  if (!urls.length) {
+    return { ok: false, error: "No listings saved yet. Scrape your Depop profile first." };
+  }
+
+  stopRequested = false;
+  const total = urls.length;
+  const exported = [];
+  const failed = [];
+
+  await appendLog(`Starting export of ${total} listing(s)...`);
+  await setProgress({ stage: "exporting", message: `Exporting listing 1 of ${total}...`, percent: 0, current: 0, total });
+
+  for (let i = 0; i < urls.length; i++) {
+    if (stopRequested) {
+      await clearProgress();
+      return { ok: false, error: `Export stopped after ${i} listing(s).`, partial: exported };
+    }
+
+    const editUrl = urls[i];
+    const percent = Math.round((i / total) * 100);
+    await setProgress({
+      stage: "exporting",
+      message: `Exporting ${i + 1} of ${total}...`,
+      percent,
+      current: i + 1,
+      total
+    });
+
+    let tab = null;
+    try {
+      tab = await openTabHidden(editUrl);
+      await sleep(2500);
+
+      const result = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: scrapeListingEditPage
+      });
+
+      const details = result?.[0]?.result || {};
+      const base = meta[editUrl] || {};
+      exported.push(normalizeExportListing(editUrl, base, details, i));
+      await appendLog(`Exported: ${urlToLabel(editUrl)}`);
+    } catch (e) {
+      failed.push({ editUrl, error: e.message });
+      exported.push(normalizeExportListing(editUrl, meta[editUrl] || {}, { scrapeError: e.message }, i));
+      await appendLog(`Export failed for ${urlToLabel(editUrl)}: ${e.message}`);
+    } finally {
+      if (tab?.id) {
+        try { await chrome.tabs.remove(tab.id); } catch (_) {}
+      }
+    }
+
+    await sleep(700);
+  }
+
+  const exportData = {
+    schema: "depop-shop-export/v1",
+    exportedAt: new Date().toISOString(),
+    source: "Depop Listing Renewer",
+    profile: profileInfo || newestProfile(profileProfiles) || null,
+    counts: {
+      listings: exported.length,
+      failed: failed.length
+    },
+    listings: exported,
+    failed
+  };
+
+  await appendLog(`Export ready - ${exported.length} listing(s), ${failed.length} failed.`);
+  await setProgress({ stage: "done", message: `Export ready: ${exported.length} listing(s).`, percent: 100, current: total, total });
+  await sleep(1200);
+  await clearProgress();
+
+  return { ok: true, exportData };
+}
+
+function normalizeExportListing(editUrl, base, details, index) {
+  const slug = base.slug || editUrl.match(/\/products\/edit\/([^/]+)\//)?.[1] || "";
+  const fields = details.fields || {};
+  const photos = uniqueStrings([
+    ...(details.photos || []),
+    base.imageUrl
+  ]).map((url, photoIndex) => ({
+    url: upgradeExportImageUrl(url),
+    sourceUrl: url,
+    position: photoIndex + 1
+  }));
+
+  const description = firstValue(fields, ["description", "details", "item description", "describe your item"]);
+  const title = firstValue(fields, ["title", "item title", "name"]) || base.title || slug;
+  const price = firstValue(fields, ["price", "sale price", "item price"]) || base.price || "";
+  const colors = collectValues(fields, ["colour", "color", "colours", "colors"]);
+
+  return {
+    id: slug,
+    slug,
+    position: index + 1,
+    productUrl: base.productUrl || editUrl.replace("/products/edit/", "/products/"),
+    editUrl,
+    title,
+    description,
+    price,
+    colors,
+    photos,
+    attributes: fields,
+    raw: details.raw || {},
+    scrapeError: details.scrapeError || null
+  };
+}
+
+function scrapeListingEditPage() {
+  const fields = {};
+  const raw = {
+    title: document.title,
+    url: location.href
+  };
+
+  function unique(values) {
+    return Array.from(new Set((values || []).filter(Boolean)));
+  }
+
+  function clean(value) {
+    return String(value || "").replace(/\s+/g, " ").trim();
+  }
+
+  function keyFromElement(el) {
+    const labels = [];
+    if (el.id) {
+      const escapedId = window.CSS?.escape ? CSS.escape(el.id) : el.id.replace(/"/g, '\\"');
+      const label = document.querySelector(`label[for="${escapedId}"]`);
+      if (label) labels.push(label.innerText);
+    }
+    const wrappingLabel = el.closest("label");
+    if (wrappingLabel) labels.push(wrappingLabel.innerText);
+    labels.push(
+      el.getAttribute("aria-label"),
+      el.getAttribute("placeholder"),
+      el.name,
+      el.id
+    );
+
+    const group = el.closest("[role='group'], fieldset, div");
+    const groupLabel = group?.querySelector("legend, label, h2, h3, p")?.innerText;
+    labels.push(groupLabel);
+
+    const labelText = clean(labels.find(Boolean) || "");
+    return labelText
+      .replace(/\*/g, "")
+      .replace(/[^a-z0-9]+/gi, " ")
+      .trim()
+      .toLowerCase();
+  }
+
+  function addField(key, value) {
+    key = clean(key).toLowerCase();
+    value = clean(value);
+    if (!key || !value) return;
+    if (!fields[key]) fields[key] = value;
+    else if (fields[key] !== value) fields[key] = `${fields[key]} | ${value}`;
+  }
+
+  document.querySelectorAll("input, textarea, select").forEach(el => {
+    if (el.type === "hidden" || el.type === "file" || el.type === "button" || el.type === "submit") return;
+    if ((el.type === "checkbox" || el.type === "radio") && !el.checked) return;
+
+    let value = "";
+    if (el.tagName === "SELECT") {
+      value = Array.from(el.selectedOptions).map(o => o.innerText || o.value).join(", ");
+    } else if (el.type === "checkbox" || el.type === "radio") {
+      value = el.value || "selected";
+    } else {
+      value = el.value || el.getAttribute("value") || "";
+    }
+    addField(keyFromElement(el), value);
+  });
+
+  document.querySelectorAll("[contenteditable='true']").forEach(el => {
+    addField(keyFromElement(el), el.innerText);
+  });
+
+  document.querySelectorAll("[aria-pressed='true'], [aria-selected='true']").forEach(el => {
+    const text = clean(el.innerText || el.getAttribute("aria-label"));
+    const group = el.closest("[role='group'], fieldset, div");
+    const groupLabel = clean(group?.querySelector("legend, label, h2, h3, p")?.innerText || "");
+    if (text && groupLabel && text !== groupLabel) addField(groupLabel, text);
+  });
+
+  const photos = unique(Array.from(document.querySelectorAll("img"))
+    .filter(img => {
+      const w = img.naturalWidth || img.width || 0;
+      const h = img.naturalHeight || img.height || 0;
+      return w >= 80 && h >= 80;
+    })
+    .map(img => img.currentSrc || img.src || img.getAttribute("src"))
+    .filter(src => src && /^https?:\/\//.test(src))
+    .filter(src => /depop|cloudinary|image|img|cdn/i.test(src))
+  );
+
+  const nextData = document.getElementById("__NEXT_DATA__")?.textContent;
+  if (nextData) {
+    try {
+      const parsed = JSON.parse(nextData);
+      raw.nextData = {
+        present: true,
+        topLevelKeys: Object.keys(parsed),
+        buildId: parsed.buildId || null
+      };
+    } catch (_) {
+      raw.nextData = "unparseable";
+    }
+  }
+
+  return { fields, photos, raw };
+}
+
+function firstValue(fields, names) {
+  for (const name of names) {
+    const exact = fields[name];
+    if (exact) return exact;
+    const fuzzyKey = Object.keys(fields).find(k => k.includes(name));
+    if (fuzzyKey) return fields[fuzzyKey];
+  }
+  return "";
+}
+
+function collectValues(fields, names) {
+  const values = [];
+  names.forEach(name => {
+    Object.keys(fields).forEach(key => {
+      if (key.includes(name)) values.push(...String(fields[key]).split("|"));
+    });
+  });
+  return uniqueStrings(values.map(v => v.trim()).filter(Boolean));
+}
+
+function uniqueStrings(values) {
+  return Array.from(new Set((values || []).filter(Boolean)));
+}
+
+function upgradeExportImageUrl(url) {
+  if (!url) return url;
+  return url.replace(/\/P\d+\.jpg(\?.*)?$/, "/P0.jpg$1");
+}
+
+function newestProfile(profileProfiles) {
+  const profiles = Object.values(profileProfiles || {});
+  if (!profiles.length) return null;
+  profiles.sort((a, b) => new Date(b.scrapedAt || 0) - new Date(a.scrapedAt || 0));
+  return profiles[0];
+}
 
 // --- Core renewal (reverse order) ---
 async function runRenewal() {

@@ -103,6 +103,41 @@ $("scrapeBtn").addEventListener("click", async () => {
   }
 });
 
+// --- Export ---
+$("exportBtn").addEventListener("click", async () => {
+  if (!listings.length) { showError("Scrape your listings first."); return; }
+
+  hideError();
+  showPSA("Exporting listing fields and photo URLs from your saved edit pages...");
+  $("exportBtn").disabled = true;
+  $("exportBtn").textContent = "Exporting...";
+
+  startProgressPoller();
+  let result;
+  try {
+    result = await sendMsg({ action: "exportListings" });
+  } catch (e) {
+    result = { ok: false, error: e.message };
+  } finally {
+    stopProgressPoller();
+    clearProgressUI();
+    hidePSA();
+
+    $("exportBtn").disabled = false;
+    $("exportBtn").textContent = "Download Site Export (.json)";
+  }
+
+  if (!result.ok) {
+    showError(result.error || "Export failed.");
+    return;
+  }
+
+  downloadJson(result.exportData);
+
+  const status = await sendMsg({ action: "getStatus" });
+  renderLog(status.log || []);
+});
+
 // --- Stop ---
 $("stopBtn").addEventListener("click", async () => {
   await sendMsg({ action: "stopNow" });
@@ -278,6 +313,25 @@ function shortTime(t) {
 function showError(msg) { const b = $("errorBanner"); b.innerText = msg; b.classList.add("visible"); }
 function hideError() { $("errorBanner").classList.remove("visible"); }
 
+function downloadJson(data) {
+  const username = data.profile?.username ? slugify(data.profile.username) : "shop";
+  const date = new Date().toISOString().slice(0, 10);
+  const filename = `depop-${username}-site-export-${date}.json`;
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function slugify(value) {
+  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "shop";
+}
+
 // --- Footer buttons ---
 $("bugBtn").addEventListener("click", () => {
   const subject = encodeURIComponent("Depop Renewer Bug Report");
@@ -295,7 +349,7 @@ What I expected:
 What actually happened:
 [describe what went wrong]
 
-Extension version: 1.4.0
+Extension version: 1.5.0
 Chrome version: [your Chrome version]
 `);
   chrome.tabs.create({ url: `mailto:lylesmaggie55@gmail.com?subject=${subject}&body=${body}` });

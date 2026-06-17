@@ -104,6 +104,8 @@
     .action-btn { border-radius: 4px; font-size: 10px; font-family: var(--mono); padding: 6px 9px; cursor: pointer; white-space: nowrap; transition: background 0.15s; flex-shrink: 0; }
     .action-btn.scrape { background: var(--green-dim); border: 1px solid var(--green); color: var(--green); }
     .action-btn.scrape:hover { background: rgba(46,204,113,0.22); }
+    .action-btn.export { background: var(--surface); border: 1px solid var(--accent); color: var(--accent); }
+    .action-btn.export:hover { background: var(--accent-dim); }
     .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
     .stop-btn {
@@ -231,6 +233,9 @@
     </div>
     <div class="input-row">
       <button class="action-btn scrape" id="scrapeBtn" style="width:100%;text-align:center">⟲ Scrape Listings From Open Depop Tab</button>
+    </div>
+    <div class="input-row" style="margin-top:6px">
+      <button class="action-btn export" id="exportBtn" style="width:100%;text-align:center">Download Site Export (.json)</button>
     </div>
   </div>
 

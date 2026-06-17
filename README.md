@@ -36,6 +36,18 @@ button — the same action as manually editing and re-saving a listing.
 
 ---
 
+## Exporting Listings for Your Own Site
+
+1. Open your Depop profile in Chrome and scroll until all active listings are loaded.
+2. Click the extension icon, then click **Scrape Listings From Open Depop Tab**.
+3. Click **Download Site Export (.json)**.
+
+The export opens each saved edit page in the background and downloads a JSON file with
+profile info, listing order, title, description, price, colors, all detected form fields,
+and high-resolution photo URLs where available.
+
+---
+
 ## Finding Your Edit Page URLs
 
 1. Go to your Depop profile → tap a listing → Edit
